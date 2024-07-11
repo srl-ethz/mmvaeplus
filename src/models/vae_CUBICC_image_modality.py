@@ -26,12 +26,16 @@ class CUB_Image(VAE):
             nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),
             nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=True)  # It is important that this log-variance vector is learnable (see paper)
         ])
+        self._pw_params_std = nn.ParameterList([
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False)
+        ])
         self.modelName = 'cubI'
         self.dataSize = torch.Size([3, 64, 64])
         self.llik_scaling = 1.
         self.params = params
 
-
+    @property
     def pw_params(self):
         """
 
@@ -42,6 +46,20 @@ class CUB_Image(VAE):
             return self._pw_params[0], F.softplus(self._pw_params[1]) + Constants.eta
         else:
             return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(
+                -1) + Constants.eta
+
+
+    @property
+    def pw_params_std(self):
+        """
+
+        Returns: Parameters of prior distribution for modality-specific latent code
+
+        """
+        if self.params.priorposterior == 'Normal':
+            return self._pw_params_std[0], F.softplus(self._pw_params_std[1]) + Constants.eta
+        else:
+            return self._pw_params_std[0], F.softmax(self._pw_params_std[1], dim=-1) * self._pw_params_std[1].size(
                 -1) + Constants.eta
 
 

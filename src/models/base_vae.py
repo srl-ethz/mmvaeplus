@@ -22,6 +22,7 @@ class VAE(nn.Module):
         self.params = params # Parameters (i.e. args passed to the main script)
         # self._pu_params = None  # defined in subclass
         self._pw_params = None # defined in subclass
+        self._pw_params_std = None # defined in subclass
         self._qu_x_params = None  # Parameters of posterior distributions: populated in forward
         self.llik_scaling = 1.0 # Likelihood scaling factor for each modality
 
@@ -30,6 +31,11 @@ class VAE(nn.Module):
     def pw_params(self):
         """Handled in multimodal VAE subclass, depends on the distribution class"""
         return self._pw_params
+
+    @property
+    def pw_params_std(self):
+        """Handled in multimodal VAE subclass, depends on the distribution class"""
+        return self._pw_params_std
 
     @property
     def qu_x_params(self):
