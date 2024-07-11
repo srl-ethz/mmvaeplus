@@ -1,3 +1,4 @@
-from .mmvae_polymnist import PolyMNIST_5modalities as VAE_polymnist_5modalities
+from .mmvaeplus_polyMNIST import PolyMNIST_5modalities as MMVAEplus_PolyMNIST_5modalities
+from .mmvaeplus_CUB import CUB_Image_Captions as MMVAEplus_CUB_Image_Captions
 
-__all__ = [VAE_polymnist_5modalities]
+__all__ = [MMVAEplus_CUB_Image_Captions,  MMVAEplus_CUB_Image_Captions]
