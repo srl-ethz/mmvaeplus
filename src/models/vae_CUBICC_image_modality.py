@@ -1,0 +1,47 @@
+# CUB Image-Captions Unimodal VAE Image model specification
+import torch
+import torch.distributions as dist
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.utils.data
+from torchvision import datasets, transforms
+from utils import Constants
+from .base_vae import VAE
+from .encoder_decoder_blocks.resnet_cub_image import EncoderImg, DecoderImg
+
+
+class CUB_Image(VAE):
+    """ Unimodal VAE subclass for Image modality CUB Image-Captions experiment """
+
+    def __init__(self, params):
+        super(CUB_Image, self).__init__(
+            dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,                 # prior
+            dist.Laplace,                                                                       # likelihood
+            dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,                 # posterior
+            EncoderImg(params.latent_dim_w, params.latent_dim_z, dist=params.priorposterior),   # Encoder model
+            DecoderImg(params.latent_dim_u),                                                    # Decoder model
+            params                                                                              # Params (args passed to main)
+        )
+        self._pw_params = nn.ParameterList([
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=True)  # It is important that this log-variance vector is learnable (see paper)
+        ])
+        self.modelName = 'cubI'
+        self.dataSize = torch.Size([3, 64, 64])
+        self.llik_scaling = 1.
+        self.params = params
+
+
+    def pw_params(self):
+        """
+
+        Returns: Parameters of prior distribution for modality-specific latent code
+
+        """
+        if self.params.priorposterior == 'Normal':
+            return self._pw_params[0], F.softplus(self._pw_params[1]) + Constants.eta
+        else:
+            return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(
+                -1) + Constants.eta
+
+
