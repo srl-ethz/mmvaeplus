@@ -16,7 +16,9 @@ maxSentLen = 32
 minOccur = 3
 
 class CUB_Image_Captions(MMVAEplus):
-
+    """
+    MMVAEplus subclass for CUB Image-Captions Experiment
+    """
     def __init__(self, params):
         super(CUB_Image_Captions, self).__init__(dist.Normal if params.priorposterior == 'Normal' else dist.Laplace, params, CUB_Image, CUB_Sentence)
         self._pz_params = nn.ParameterList([
@@ -30,16 +32,16 @@ class CUB_Image_Captions(MMVAEplus):
         self.params = params
 
     @property
-    def pu_params(self):
+    def pz_params(self):
         """
 
         Returns: Parameters of prior distribution for shared latent code
 
         """
         if self.params.priorposterior == 'Normal':
-            return self._pu_params[0], F.softplus(self._pu_params[1]) + Constants.eta
+            return self._pz_params[0], F.softplus(self._pz_params[1]) + Constants.eta
         else:
-            return self._pu_params[0], F.softmax(self._pu_params[1], dim=-1) * self._pu_params[1].size(-1) + Constants.eta
+            return self._pz_params[0], F.softmax(self._pz_params[1], dim=-1) * self._pz_params[1].size(-1) + Constants.eta
 
 
     def self_and_cross_modal_generation(self, data, num=10,N=10):
@@ -120,14 +122,11 @@ class CUB_Image_Captions(MMVAEplus):
         sentences_worded = [' '.join(self.vaes[1].i2w[str(word)] for word in sent if self.vaes[1].i2w[str(word)] != '<pad>') for sent in sentences_processed]
         return plot_text_as_image_tensor(sentences_worded, pixel_width=64, pixel_height=384)
 
-    def generate_unconditional(self, N=100, indexes_to_prune=None, indexes_to_select=None, random=False, coherence_calculation=False, fid_calculation=False, savePath=None, tranche=None):
+    def generate_unconditional(self, N=100,coherence_calculation=False, fid_calculation=False, savePath=None, tranche=None):
         """
         Generate unconditional
         Args:
             N: Number of generations.
-            indexes_to_prune: Latent clusters to prune
-            indexes_to_select: Latent clusters to select
-            random: Randomly sampling latent clusters or not
             coherence_calculation: Whether it serves for coherence calculation
             fid_calculation: Whether it serves for fid calculation
             savePath: additional argument for fid calculation save path for images
