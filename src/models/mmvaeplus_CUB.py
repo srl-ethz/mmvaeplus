@@ -25,6 +25,10 @@ class CUB_Image_Captions(MMVAEplus):
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False),  # mu
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False)  # logvar
         ])
+        self._pz_params = nn.ParameterList([
+            nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False),  # mu
+            nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False)  # logvar
+        ])
         self.vaes[0].llik_scaling = self.vaes[1].maxSentLen / prod(self.vaes[0].dataSize) #\
         #     if params.llik_scaling == 0 else params.llik_scaling
         self.vaes[1].llik_scaling = params.llik_scaling_sent
@@ -43,6 +47,17 @@ class CUB_Image_Captions(MMVAEplus):
         else:
             return self._pz_params[0], F.softmax(self._pz_params[1], dim=-1) * self._pz_params[1].size(-1) + Constants.eta
 
+    @property
+    def pw_params(self):
+        """
+
+        Returns: Parameters of prior distribution for modality-specific latent code
+
+        """
+        if self.params.priorposterior == 'Normal':
+            return self._pw_params[0], F.softplus(self._pw_params[1]) + Constants.eta
+        else:
+            return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(-1) + Constants.eta
 
     def self_and_cross_modal_generation(self, data, num=10,N=10):
         """

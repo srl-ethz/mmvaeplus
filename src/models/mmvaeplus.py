@@ -11,6 +11,7 @@ class MMVAEplus(nn.Module):
     def __init__(self, prior_dist, params, *vaes):
         super(MMVAEplus, self).__init__()
         self.pz = prior_dist # Prior distribution
+        self.pw = prior_dist
         self.vaes = nn.ModuleList([vae(params) for vae in vaes]) # List of unimodal VAEs (one for each modality)
         self.modelName = None  # Filled-in in subclass
         self.params = params # Model parameters (i.e. args passed to main script)
@@ -49,7 +50,7 @@ class MMVAEplus(nn.Module):
                     # Get shared latents from encoding modality e
                     _, z_e = torch.split(us, [self.params.latent_dim_w, self.params.latent_dim_z], dim=-1)
                     # Resample modality-specific encoding from modality-specific auxiliary distribution for decoding modality m
-                    pw = vae.pw(*vae.pw_params)
+                    pw = vae.pw(*vae.pw_params_aux)
                     latents_w = pw.rsample(torch.Size([us.size()[0], us.size()[1]])).squeeze(2)
                     # Fixed for cuda (sorry)
                     if not self.params.no_cuda and torch.cuda.is_available():
@@ -77,7 +78,7 @@ class MMVAEplus(nn.Module):
             latents_z = pz.rsample(torch.Size([N]))
             # Decode for all modalities
             for d, vae in enumerate(self.vaes):
-                pw = vae.pw(*vae.pw_params_std)
+                pw = self.pw(self.pw_params)
                 latents_w = pw.rsample([latents_z.size()[0]])
                 latents = torch.cat((latents_w, latents_z), dim=-1)
                 px_u = vae.px_u(*vae.dec(latents))
@@ -122,10 +123,10 @@ class MMVAEplus(nn.Module):
         for e, us in enumerate(uss):
             latents_w, latents_z = torch.split(us, [self.params.latent_dim_w, self.params.latent_dim_z], dim=-1)
             for d, vae in enumerate(self.vaes):
-                mean_w, scale_w = vae.pw_params_std
+                mean_w, scale_w = self.pw_params
                 # Tune modality-specific std prior
                 # scale_w = factor * scale_w
-                pw = vae.pw(mean_w, scale_w)
+                pw = self.pw(mean_w, scale_w)
                 latents_w_new = pw.rsample(torch.Size([us.size()[0], us.size()[1]])).squeeze(2)
                 us_new = torch.cat((latents_w_new, latents_z), dim=-1)
                 if e != d:  # fill-in off-diagonal

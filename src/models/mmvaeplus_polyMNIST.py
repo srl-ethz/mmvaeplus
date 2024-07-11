@@ -22,6 +22,10 @@ class PolyMNIST_5modalities(MMVAEplus):
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False),  # mu
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False)  # logvar
         ])
+        self._pw_params = nn.ParameterList([
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),  # mu
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False)  # logvar
+        ])
         self.modelName = 'CMVAE_PolyMNIST'
 
         # Fix model names for indiviudal models to be saved
@@ -35,13 +39,25 @@ class PolyMNIST_5modalities(MMVAEplus):
     def pz_params(self):
         """
 
-        Returns: Parameters of prior distribution for latent code
+        Returns: Parameters of prior distribution for shared latent code
 
         """
         if self.params.priorposterior == 'Normal':
             return self._pz_params[0], F.softplus(self._pz_params[1]) + Constants.eta
         else:
             return self._pz_params[0], F.softmax(self._pz_params[1], dim=-1) * self._pz_params[1].size(-1) + Constants.eta
+
+    @property
+    def pw_params(self):
+        """
+
+        Returns: Parameters of prior distribution for modality-specific latent code
+
+        """
+        if self.params.priorposterior == 'Normal':
+            return self._pw_params[0], F.softplus(self._pw_params[1]) + Constants.eta
+        else:
+            return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(-1) + Constants.eta
 
     def getDataSets(self, batch_size, shuffle=True, device='cuda'):
         """Get PolyMNIST datasets."""
