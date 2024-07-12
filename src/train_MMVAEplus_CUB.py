@@ -117,10 +117,6 @@ optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
 
 # Load CUB Image-Captions
 train_loader, test_loader = model.getDataLoaders(args.batch_size,  device=device)
-
-print(len(train_loader), len(test_loader))
-
-
 objective = getattr(objectives,
                     ('m_' if hasattr(model, 'vaes') else '')
                     + args.obj)
