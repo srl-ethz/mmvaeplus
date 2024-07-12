@@ -226,13 +226,13 @@ if __name__ == '__main__':
     with Timer('MMVAEplus') as t:
         for epoch in range(1, args.epochs + 1):
             train(epoch)
-            if epoch % 25 == 0:
+            if epoch % 10 == 0:
                 test(epoch)
                 # model.eval()
                 gen_samples = model.generate_unconditional(N=100, coherence_calculation=False, fid_calculation=False)
                 for j in range(NUM_VAES):
                     wandb.log({'Generations/m{}'.format(j): wandb.Image(gen_samples[j])}, step=epoch)
                 calculate_fid_routine(datadirCUB, fid_path, 10000, epoch)
-            if epoch % 25 == 0:
+            if epoch % 10 == 0:
                 save_model_light(model, runPath + '/model_'+str(epoch)+'.rar')
 
