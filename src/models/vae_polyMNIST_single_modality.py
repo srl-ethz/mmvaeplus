@@ -33,7 +33,7 @@ class PolyMNIST(VAE):
         self.modelName = 'polymnist-split'
         self.dataSize = dataSize
         self.llik_scaling = 1.
-        self.tmpdir = params.tmpdir
+        self.datadir = params.datadir
         self.params = params
 
 
@@ -52,8 +52,8 @@ class PolyMNIST(VAE):
 
     def getDataLoaders(self, batch_size, shuffle=True, device='cuda'):
         """Get PolyMNIST modality dataloaders."""
-        unim_datapaths_train = [self.tmpdir+"/PolyMNIST/train/" + "m" + str(self.modal)]
-        unim_datapaths_test = [self.tmpdir+"/PolyMNIST/test/" + "m" + str(self.modal)]
+        unim_datapaths_train = [self.datadir+"/PolyMNIST/train/" + "m" + str(self.modal)]
+        unim_datapaths_test = [self.datadir+"/PolyMNIST/test/" + "m" + str(self.modal)]
         
         kwargs = {'num_workers': 1, 'pin_memory': True} if device == 'cuda' else {}
         tx = transforms.ToTensor()

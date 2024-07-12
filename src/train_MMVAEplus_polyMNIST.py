@@ -43,7 +43,7 @@ parser.add_argument('--seed', type=int, default=2,
                     help='random seed')
 parser.add_argument('--beta', type=float, default=2.5,
                     help='beta hyperparameter in VAE objective')
-parser.add_argument('--tmpdir', type=str, default='/local/home/palumboe/data',
+parser.add_argument('--datadir', type=str, default='/local/home/palumboe/data',
                     help=' Directory where data is stored and samples used for FID calculation are saved')
 parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
@@ -93,8 +93,8 @@ print('RunID:', runId)
 NUM_VAES = len(model.vaes)
 
 # Create path where to temporarily save images to compute FID scores
-fid_path = os.path.join(args.tmpdir, 'fids_PM_' + (runPath.rsplit('/')[-1]))
-datadir = os.path.join(args.tmpdir, "PolyMNIST")
+fid_path = os.path.join(args.datadir, 'fids_PM_' + (runPath.rsplit('/')[-1]))
+datadirPM = os.path.join(args.datadir, "PolyMNIST")
 
 # Save args to run
 with open('{}/args.json'.format(runPath), 'w') as fp:
@@ -354,7 +354,7 @@ def unconditional_coherence():
     return uncond_coherence
 
 
-def calculate_fid_routine(datadir, fid_path, num_fid_samples, epoch):
+def calculate_fid_routine(datadirPM, fid_path, num_fid_samples, epoch):
     """ Calculate FID scores for unconditional and conditional generation """
     total_cond = 0
     # Create new directories for conditional FIDs
@@ -385,12 +385,12 @@ def calculate_fid_routine(datadir, fid_path, num_fid_samples, epoch):
                 model.self_and_cross_modal_generation_for_fid_calculation(data, fid_path, i)
                 total_cond += data[0].size(0)
         calculate_inception_features_for_gen_evaluation(args.inception_path, device,
-                                                        fid_path, datadir)
+                                                        fid_path, datadirPM)
         # FID calculation
         fid_randm_list = []
         fid_condgen_list = []
         for modality_target in ['m{}'.format(m) for m in range(5)]:
-            file_activations_real = os.path.join(args.tmpdir, 'PolyMNIST', 'test',
+            file_activations_real = os.path.join(args.datadir, 'PolyMNIST', 'test',
                                                  'real_activations_{}.npy'.format(modality_target))
             feats_real = np.load(file_activations_real)
             file_activations_randgen = os.path.join(fid_path, 'random',
@@ -590,6 +590,6 @@ if __name__ == '__main__':
                 # Save checkpoint (light)
                 save_model_light(model, runPath + '/model_' + str(epoch) + '.rar')
                 # # Calculate FID scores
-        calculate_fid_routine(datadir, fid_path, 10000, epoch)
+        calculate_fid_routine(datadirPM, fid_path, 10000, epoch)
 
 

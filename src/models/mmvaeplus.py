@@ -1,12 +1,11 @@
-# Base CMVAE class definition
+# Base MMVAEplus class definition
 import torch
 import torch.nn as nn
 from utils import get_mean
-import torch.distributions as dist
 
 class MMVAEplus(nn.Module):
     """
-    CMVAE class definition. Multimodal VAE with clustering in the latent space.
+    MMVAEplus class definition.
     """
     def __init__(self, prior_dist, params, *vaes):
         super(MMVAEplus, self).__init__()

@@ -26,13 +26,13 @@ class PolyMNIST_5modalities(MMVAEplus):
             nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),  # mu
             nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False)  # logvar
         ])
-        self.modelName = 'CMVAE_PolyMNIST'
+        self.modelName = 'MMVAEplus_PolyMNIST'
 
         # Fix model names for indiviudal models to be saved
         for idx, vae in enumerate(self.vaes):
             vae.modelName = 'VAE_PolyMNIST_m' + str(idx)
 
-        self.tmpdir = params.tmpdir
+        self.datadir = params.datadir
         self.params = params
 
     @property
@@ -62,8 +62,8 @@ class PolyMNIST_5modalities(MMVAEplus):
     def getDataSets(self, batch_size, shuffle=True, device='cuda'):
         """Get PolyMNIST datasets."""
         tx = transforms.ToTensor()
-        unim_train_datapaths = [self.tmpdir+"/PolyMNIST/train/" + "m" + str(i) for i in [0, 1, 2, 3, 4]]
-        unim_test_datapaths = [self.tmpdir+"/PolyMNIST/test/" + "m" + str(i) for i in [0, 1, 2, 3, 4]]
+        unim_train_datapaths = [self.datadir+"/PolyMNIST/train/" + "m" + str(i) for i in [0, 1, 2, 3, 4]]
+        unim_test_datapaths = [self.datadir+"/PolyMNIST/test/" + "m" + str(i) for i in [0, 1, 2, 3, 4]]
         dataset_PolyMNIST_train = PolyMNISTDataset(unim_train_datapaths, transform=tx)
         dataset_PolyMNIST_test = PolyMNISTDataset(unim_test_datapaths, transform=tx)
         # kwargs = {'num_workers': 2, 'pin_memory': True} if device == 'cuda' else {}

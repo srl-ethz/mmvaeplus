@@ -39,7 +39,7 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
 parser.add_argument('--beta', type=float, default=1.0)
 parser.add_argument('--llik_scaling_sent', type=float, default=5.0,
                     help='likelihood scaling factor sentences')
-parser.add_argument('--tmpdir', type=str, default='/local/home/palumboe/data',
+parser.add_argument('--datadir', type=str, default='/local/home/palumboe/data',
                     help=' Directory where data is stored and samples used for FID calculation are saved')
 parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
@@ -87,8 +87,8 @@ print('RunID:', runId)
 NUM_VAES = len(model.vaes)
 
 # Creat path where to temporarily save images to compute FID scores
-fid_path = os.path.join(args.tmpdir, 'fids_CUB_Image_Captions' + (runPath.rsplit('/')[-1]))
-datadir = os.path.join(args.tmpdir, "CUB_Image_Captions")
+fid_path = os.path.join(args.datadir, 'fids_CUB_Image_Captions' + (runPath.rsplit('/')[-1]))
+datadirCUB = os.path.join(args.datadir, "CUB_Image_Captions")
 
 # save args to run
 with open('{}/args.json'.format(runPath), 'w') as fp:
@@ -131,8 +131,6 @@ def train(epoch):
     model.train()
     b_loss = 0
     for i, dataT in enumerate(train_loader):
-        if i == 5:
-            break
         data = unpack_data(dataT, device=device)
         optimizer.zero_grad()
         loss = -objective(model, data, K=args.K)
@@ -166,7 +164,7 @@ def test(epoch):
     wandb.log({"Loss/test": epoch_loss}, step=epoch)
     print('====>             Test loss: {:.4f}'.format(epoch_loss))
 
-def calculate_fid_routine(datadir, fid_path, num_fid_samples, epoch):
+def calculate_fid_routine(datadirCUB, fid_path, num_fid_samples, epoch):
     """ Calculate FID scores for unconditional and conditional generation """
     total_cond = 0
     # Create new directories for conditional FIDs
@@ -204,7 +202,7 @@ def calculate_fid_routine(datadir, fid_path, num_fid_samples, epoch):
                 model.save_test_samples_for_fid_calculation(data, fid_path, i)
                 total_cond += data[0].size(0)
         calculate_inception_features_for_gen_evaluation(args.inception_path, device,
-                                                        fid_path, datadir)
+                                                        fid_path, datadirCUB)
         # FID calculation
         modality_target = 'm{}'.format(0)
         file_activations_real = os.path.join(fid_path, 'test',
@@ -232,13 +230,13 @@ if __name__ == '__main__':
     with Timer('MMVAEplus') as t:
         for epoch in range(1, args.epochs + 1):
             train(epoch)
-            if epoch % 1 == 0:
+            if epoch % 25 == 0:
                 test(epoch)
                 # model.eval()
                 gen_samples = model.generate_unconditional(N=100, coherence_calculation=False, fid_calculation=False)
                 for j in range(NUM_VAES):
                     wandb.log({'Generations/m{}'.format(j): wandb.Image(gen_samples[j])}, step=epoch)
-                calculate_fid_routine(datadir, fid_path, 10000, epoch)
+                calculate_fid_routine(datadirCUB, fid_path, 10000, epoch)
             if epoch % 25 == 0:
                 save_model_light(model, runPath + '/model_'+str(epoch)+'.rar')
 

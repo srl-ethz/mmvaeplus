@@ -43,7 +43,7 @@ class CUB_Sentence(VAE):
 
         self.fn_2i = lambda t: t.cpu().numpy().astype(int)
         self.fn_trun = lambda s: s[:np.where(s == 2)[0][0] + 1] if 2 in s else s
-        self.vocab_file = params.tmpdir + '/cub/oc:{}_msl:{}/cub.vocab'.format(minOccur, maxSentLen)
+        self.vocab_file = params.datadir + '/cub/oc:{}_msl:{}/cub.vocab'.format(minOccur, maxSentLen)
 
         self.maxSentLen = maxSentLen
         self.vocabSize = vocabSize
@@ -67,8 +67,8 @@ class CUB_Sentence(VAE):
     def getDataLoaders(self, batch_size, shuffle=True, device="cuda"):
         kwargs = {'num_workers': 1, 'pin_memory': True} if device == "cuda" else {}
         tx = lambda data: torch.Tensor(data)
-        t_data = CUBSentences(self.params.tmpdir, split='train', one_hot=True, transpose=False, transform=tx, max_sequence_length=maxSentLen)
-        s_data = CUBSentences(self.params.tmpdir, split='test', one_hot=True, transpose=False, transform=tx, max_sequence_length=maxSentLen)
+        t_data = CUBSentences(self.params.datadir, split='train', one_hot=True, transpose=False, transform=tx, max_sequence_length=maxSentLen)
+        s_data = CUBSentences(self.params.datadir, split='test', one_hot=True, transpose=False, transform=tx, max_sequence_length=maxSentLen)
 
         train_loader = DataLoader(t_data, batch_size=batch_size, shuffle=shuffle, **kwargs)
         test_loader = DataLoader(s_data, batch_size=batch_size, shuffle=shuffle, **kwargs)
