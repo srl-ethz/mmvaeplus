@@ -55,7 +55,7 @@ class ResnetBlock(nn.Module):
 class EncoderImg(nn.Module):
     """ Generate latent parameters for SVHN image data. """
 
-    def __init__(self, ndim_w, ndim_u, dist):
+    def __init__(self, ndim_w, ndim_z, dist):
         super().__init__()
         self.dist = dist
         s0 = self.s0 = 2  # kwargs['s0']
@@ -71,7 +71,7 @@ class EncoderImg(nn.Module):
             ResnetBlock(nf, nf)
         ]
 
-        blocks_u = [
+        blocks_z = [
             ResnetBlock(nf, nf)
         ]
 
@@ -82,7 +82,7 @@ class EncoderImg(nn.Module):
                 nn.AvgPool2d(3, stride=2, padding=1),
                 ResnetBlock(nf0, nf1),
             ]
-            blocks_u += [
+            blocks_z += [
                 nn.AvgPool2d(3, stride=2, padding=1),
                 ResnetBlock(nf0, nf1),
             ]
@@ -92,30 +92,30 @@ class EncoderImg(nn.Module):
         self.fc_mu_w = nn.Linear(self.nf0*s0*s0, ndim_w)
         self.fc_lv_w = nn.Linear(self.nf0*s0*s0, ndim_w)
 
-        self.conv_img_u = nn.Conv2d(3, 1 * nf, 3, padding=1)
-        self.resnet_u = nn.Sequential(*blocks_u)
-        self.fc_mu_u = nn.Linear(self.nf0 * s0 * s0, ndim_u)
-        self.fc_lv_u = nn.Linear(self.nf0 * s0 * s0, ndim_u)
+        self.conv_img_z = nn.Conv2d(3, 1 * nf, 3, padding=1)
+        self.resnet_z = nn.Sequential(*blocks_z)
+        self.fc_mu_z = nn.Linear(self.nf0 * s0 * s0, ndim_z)
+        self.fc_lv_z = nn.Linear(self.nf0 * s0 * s0, ndim_z)
 
     def forward(self, x):
         # batch_size = x.size(0)
         out_w = self.conv_img_w(x)
-        out_u = self.conv_img_u(x)
+        out_z = self.conv_img_z(x)
         out_w = self.resnet_w(out_w)
-        out_u = self.resnet_u(out_u)
+        out_z = self.resnet_z(out_z)
         out_w = out_w.view(out_w.size()[0], self.nf0 * self.s0 * self.s0)
-        out_u = out_u.view(out_u.size()[0], self.nf0 * self.s0 * self.s0)
+        out_z = out_z.view(out_z.size()[0], self.nf0 * self.s0 * self.s0)
         lv_w = self.fc_lv_w(out_w)
         mu_w = self.fc_mu_w(out_w)
-        lv_u = self.fc_lv_u(out_u)
-        mu_u = self.fc_mu_u(out_u)
+        lv_z = self.fc_lv_z(out_z)
+        mu_z = self.fc_mu_z(out_z)
 
         if self.dist == 'Normal':
-            return torch.cat((mu_w, mu_u), dim=-1),\
-               torch.cat((F.softplus(lv_w).squeeze() + Constants.eta, F.softplus(lv_u).squeeze() + Constants.eta), dim=-1)
+            return torch.cat((mu_w, mu_z), dim=-1),\
+               torch.cat((F.softplus(lv_w).squeeze() + Constants.eta, F.softplus(lv_z).squeeze() + Constants.eta), dim=-1)
         else:
-            return torch.cat((mu_w, mu_u), dim=-1), \
-                   torch.cat((F.softmax(lv_w, dim=-1) * lv_w.size(-1) + Constants.eta, F.softmax(lv_u, dim=-1) * lv_u.size(-1) + Constants.eta),
+            return torch.cat((mu_w, mu_z), dim=-1), \
+                   torch.cat((F.softmax(lv_w, dim=-1) * lv_w.size(-1) + Constants.eta, F.softmax(lv_z, dim=-1) * lv_z.size(-1) + Constants.eta),
                              dim=-1)
 
 
@@ -154,14 +154,14 @@ class DecoderImg(nn.Module):
         self.resnet = nn.Sequential(*blocks)
         self.conv_img = nn.Conv2d(nf, 3, 3, padding=1)
 
-    def forward(self, z):
-        out = self.fc(z).view(-1, self.nf0, self.s0, self.s0)
+    def forward(self, u):
+        out = self.fc(u).view(-1, self.nf0, self.s0, self.s0)
         out = self.resnet(out)
         out = self.conv_img(actvn(out))
         #if len(z.size()) == 2:
         #out = out.view(*z.size()[:1], *out.size()[1:]).unsqueeze(0)
         #else:
-        out = out.view(*z.size()[:2], *out.size()[1:])
+        out = out.view(*u.size()[:2], *out.size()[1:])
         # consider also predicting the length scale
-        return out, torch.tensor(0.01).to(z.device)  # mean, length scale
+        return out, torch.tensor(0.01).to(u.device)  # mean, length scale
         # return torch.tanh(out), torch.sigmoid(out)

@@ -46,13 +46,13 @@ def _m_elbo(model, x, K=1, test=False):
         lws.append(lw)
     return torch.stack(lws)  # (n_modality * n_samples) x batch_size, batch_size
 
-def m_elbo(model, x, K=1):
+def m_elbo(model, x, K=1, test=False):
     """
     ELBO (IWAE) objective
     """
     S = compute_microbatch_split(x, K)
     x_split = zip(*[_x.split(S) for _x in x])
-    lw = [_m_elbo(model, _x, K) for _x in x_split]
+    lw = [_m_elbo(model, _x, K, test) for _x in x_split]
     lw = torch.cat(lw, 2)  # concat on batch
     return log_mean_exp(lw, dim=1).mean(0).sum()
 
@@ -87,13 +87,13 @@ def _m_dreg(model, x, K=1, test=False):
         lws.append(lw)
     return torch.stack(lws), torch.stack(uss)
 
-def m_dreg(model, x, K=1):
+def m_dreg(model, x, K=1, test=False):
     """
     DReG objective
     """
     S = compute_microbatch_split(x, K)
     x_split = zip(*[_x.split(S) for _x in x])
-    lw, uss = zip(*[_m_dreg(model, _x, K) for _x in x_split])
+    lw, uss = zip(*[_m_dreg(model, _x, K, test) for _x in x_split])
     lw = torch.cat(lw, 2)  # concat on batch
     uss = torch.cat(uss, 2)  # concat on batch
     with torch.no_grad():

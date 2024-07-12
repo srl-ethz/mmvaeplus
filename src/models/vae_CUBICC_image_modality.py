@@ -45,5 +45,16 @@ class CUB_Image(VAE):
             return self._pw_params_aux[0], F.softmax(self._pw_params_aux[1], dim=-1) * self._pw_params_aux[1].size(
                 -1) + Constants.eta
 
+    # remember that when combining with captions, this should be x10
+    def getDataLoaders(self, batch_size, shuffle=True, device="cuda"):
+        kwargs = {'num_workers': 1, 'pin_memory': True} if device == "cuda" else {}
+        tx = transforms.Compose([transforms.Resize([64, 64]), transforms.ToTensor()])
+        train_loader = torch.utils.data.DataLoader(
+            datasets.ImageFolder(self.params.tmpdir+'/cub/train', transform=tx),
+            batch_size=batch_size, shuffle=shuffle, **kwargs)
+        test_loader = torch.utils.data.DataLoader(
+            datasets.ImageFolder(self.params.tmpdir+'/cub/test', transform=tx),
+            batch_size=batch_size, shuffle=shuffle, **kwargs)
+        return train_loader, test_loader
 
 

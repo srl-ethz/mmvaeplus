@@ -58,7 +58,7 @@ class MMVAEplus(nn.Module):
                     # Combine shared and resampled private latents
                     us_combined = torch.cat((latents_w, z_e), dim=-1)
                     # Get cross-reconstruction likelihood
-                    px_us[e][d] = vae.px_z(*vae.dec(us_combined))
+                    px_us[e][d] = vae.px_u(*vae.dec(us_combined))
         return qu_xs, px_us, uss
 
 
@@ -78,7 +78,7 @@ class MMVAEplus(nn.Module):
             latents_z = pz.rsample(torch.Size([N]))
             # Decode for all modalities
             for d, vae in enumerate(self.vaes):
-                pw = self.pw(self.pw_params)
+                pw = self.pw(*self.pw_params)
                 latents_w = pw.rsample([latents_z.size()[0]])
                 latents = torch.cat((latents_w, latents_z), dim=-1)
                 px_u = vae.px_u(*vae.dec(latents))

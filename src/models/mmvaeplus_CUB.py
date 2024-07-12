@@ -9,11 +9,15 @@ from utils import Constants, plot_text_as_image_tensor
 from .mmvaeplus import MMVAEplus
 from .vae_CUBICC_image_modality import CUB_Image
 from .vae_CUBICC_captions_modality import CUB_Sentence
+from torch.utils.data import DataLoader
+from torchnet.dataset import TensorDataset, ResampleDataset
+from dataset_CUB import resampler
 
 
 # Constants
 maxSentLen = 32
 minOccur = 3
+
 
 class CUB_Image_Captions(MMVAEplus):
     """
@@ -25,9 +29,9 @@ class CUB_Image_Captions(MMVAEplus):
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False),  # mu
             nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False)  # logvar
         ])
-        self._pz_params = nn.ParameterList([
-            nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False),  # mu
-            nn.Parameter(torch.zeros(1, params.latent_dim_z), requires_grad=False)  # logvar
+        self._pw_params = nn.ParameterList([
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False),  # mu
+            nn.Parameter(torch.zeros(1, params.latent_dim_w), requires_grad=False)  # logvar
         ])
         self.vaes[0].llik_scaling = self.vaes[1].maxSentLen / prod(self.vaes[0].dataSize) #\
         #     if params.llik_scaling == 0 else params.llik_scaling
@@ -58,6 +62,20 @@ class CUB_Image_Captions(MMVAEplus):
             return self._pw_params[0], F.softplus(self._pw_params[1]) + Constants.eta
         else:
             return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(-1) + Constants.eta
+
+    def getDataLoaders(self, batch_size, shuffle=True, device='cuda'):
+        # load base datasets
+        t1, s1 = self.vaes[0].getDataLoaders(batch_size, shuffle, device)
+        t2, s2 = self.vaes[1].getDataLoaders(batch_size, shuffle, device)
+
+        kwargs = {'num_workers': 2, 'pin_memory': True} if device == 'cuda' else {}
+        train_loader = DataLoader(TensorDataset([
+            ResampleDataset(t1.dataset, resampler, size=len(t1.dataset) * 10),
+            t2.dataset]), batch_size=batch_size, shuffle=shuffle, **kwargs)
+        test_loader = DataLoader(TensorDataset([
+            ResampleDataset(s1.dataset, resampler, size=len(s1.dataset) * 10),
+            s2.dataset]), batch_size=batch_size, shuffle=shuffle, **kwargs)
+        return train_loader, test_loader
 
     def self_and_cross_modal_generation(self, data, num=10,N=10):
         """

@@ -50,7 +50,7 @@ class ResnetBlock(nn.Module):
 class Enc(nn.Module):
     """ Encoder Image PolyMNIST Resnet """
 
-    def __init__(self, ndim_w, ndim_u, dist='Normal'):
+    def __init__(self, ndim_w, ndim_z, dist='Normal'):
         super().__init__()
         self.dist = dist
         s0 = self.s0 = 7  # kwargs['s0']
@@ -66,7 +66,7 @@ class Enc(nn.Module):
             ResnetBlock(nf, nf)
         ]
 
-        blocks_u = [
+        blocks_z = [
             ResnetBlock(nf, nf)
         ]
 
@@ -77,7 +77,7 @@ class Enc(nn.Module):
                 nn.AvgPool2d(3, stride=2, padding=1),
                 ResnetBlock(nf0, nf1),
             ]
-            blocks_u += [
+            blocks_z += [
                 nn.AvgPool2d(3, stride=2, padding=1),
                 ResnetBlock(nf0, nf1),
             ]
@@ -87,10 +87,10 @@ class Enc(nn.Module):
         self.fc_mu_w = nn.Linear(self.nf0*s0*s0, ndim_w)
         self.fc_lv_w = nn.Linear(self.nf0*s0*s0, ndim_w)
 
-        self.conv_img_u = nn.Conv2d(3, 1 * nf, 3, padding=1)
-        self.resnet_u = nn.Sequential(*blocks_u)
-        self.fc_mu_u = nn.Linear(self.nf0 * s0 * s0, ndim_u)
-        self.fc_lv_u = nn.Linear(self.nf0 * s0 * s0, ndim_u)
+        self.conv_img_z = nn.Conv2d(3, 1 * nf, 3, padding=1)
+        self.resnet_z = nn.Sequential(*blocks_z)
+        self.fc_mu_z = nn.Linear(self.nf0 * s0 * s0, ndim_z)
+        self.fc_lv_z = nn.Linear(self.nf0 * s0 * s0, ndim_z)
 
     def forward(self, x):
         # batch_size = x.size(0)
@@ -99,19 +99,19 @@ class Enc(nn.Module):
         out_w = out_w.view(out_w.size()[0], self.nf0*self.s0*self.s0)
         lv_w = self.fc_lv_w(out_w)
 
-        out_u = self.conv_img_u(x)
-        out_u = self.resnet_u(out_u)
-        out_u = out_u.view(out_u.size()[0], self.nf0 * self.s0 * self.s0)
-        lv_u = self.fc_lv_u(out_u)
+        out_z = self.conv_img_z(x)
+        out_z = self.resnet_z(out_z)
+        out_z = out_z.view(out_z.size()[0], self.nf0 * self.s0 * self.s0)
+        lv_z = self.fc_lv_z(out_z)
 
         if self.dist == 'Normal':
-            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_u(out_u)), dim=-1), \
+            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_z(out_z)), dim=-1), \
                    torch.cat((F.softplus(lv_w) + Constants.eta,
-                              F.softplus(lv_u) + Constants.eta), dim=-1)
+                              F.softplus(lv_z) + Constants.eta), dim=-1)
         else:
-            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_u(out_u)), dim=-1), \
+            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_z(out_z)), dim=-1), \
                    torch.cat((F.softmax(lv_w, dim=-1) * lv_w.size(-1) + Constants.eta,
-                              F.softmax(lv_u, dim=-1) * lv_u.size(-1) + Constants.eta), dim=-1)
+                              F.softmax(lv_z, dim=-1) * lv_z.size(-1) + Constants.eta), dim=-1)
 
 
 class Dec(nn.Module):
@@ -148,12 +148,12 @@ class Dec(nn.Module):
         self.resnet = nn.Sequential(*blocks)
         self.conv_img = nn.Conv2d(nf, 3, 3, padding=1)
 
-    def forward(self, z):
-        out = self.fc(z).view(-1, self.nf0, self.s0, self.s0)
+    def forward(self, u):
+        out = self.fc(u).view(-1, self.nf0, self.s0, self.s0)
         out = self.resnet(out)
         out = self.conv_img(actvn(out))
 
-        out = out.view(*z.size()[:2], *out.size()[1:])
+        out = out.view(*u.size()[:2], *out.size()[1:])
 
         # consider also predicting the length scale
-        return out, torch.tensor(0.75).to(z.device)  # mean, length scale
+        return out, torch.tensor(0.75).to(u.device)  # mean, length scale
