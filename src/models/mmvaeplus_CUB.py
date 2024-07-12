@@ -7,8 +7,8 @@ import torch.distributions as dist
 from torchvision.utils import save_image, make_grid
 from utils import Constants, plot_text_as_image_tensor
 from .mmvaeplus import MMVAEplus
-from .vae_CUBICC_image_modality import CUB_Image
-from .vae_CUBICC_captions_modality import CUB_Sentence
+from .vae_CUB_image_modality import CUB_Image
+from .vae_CUB_captions_modality import CUB_Sentence
 from torch.utils.data import DataLoader
 from torchnet.dataset import TensorDataset, ResampleDataset
 from dataset_CUB import resampler

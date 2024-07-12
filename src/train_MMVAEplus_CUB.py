@@ -13,7 +13,7 @@ import objectives as objectives
 from utils import Logger, Timer, save_model_light
 from utils import unpack_data_cubIC as unpack_data
 import wandb
-from test_functions_CUBICC import calculate_inception_features_for_gen_evaluation, calculate_fid
+from test_functions_CUB import calculate_inception_features_for_gen_evaluation, calculate_fid
 
 parser = argparse.ArgumentParser(description='MMVAEplus Imgae-Captions')
 parser.add_argument('--experiment', type=str, default='', metavar='E',
