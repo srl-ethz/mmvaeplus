@@ -63,6 +63,7 @@ def _m_dreg(model, x, K=1, test=False):
         qu_xs, px_us, uss = model(x, K)
     qu_xs_ = [vae.qu_x(*[p.detach() for p in vae.qu_x_params]) for vae in model.vaes]
     qz_xs, qw_xs = [], []
+    # for r, qu_x in enumerate(qu_xs_):
     for r, qu_x in enumerate(qu_xs_):
         qu_x_r_mean, qu_x_r_lv = model.vaes[r].qu_x_params
         qw_x_mean, qz_x_mean = torch.split(qu_x_r_mean, [model.params.latent_dim_w, model.params.latent_dim_z], dim=-1)

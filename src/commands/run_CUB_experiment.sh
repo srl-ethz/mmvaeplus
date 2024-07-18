@@ -4,9 +4,9 @@ OUTPUTDIR="../outputs"
 EXPERIMENT="CUB_Image_Captions_1"
 DATADIR="../data"
 EPOCHS=50
-SEED=1
-SHARED_LAT_DIM=64
-MS_LAT_DIM=32
+SEED=2
+SHARED_LAT_DIM=48
+MS_LAT_DIM=16
 
 # Train MMVAEplus
 python train_MMVAEplus_CUB.py --experiment $EXPERIMENT --obj "dreg" --K 10 --batch-size 32 --epochs $EPOCHS \

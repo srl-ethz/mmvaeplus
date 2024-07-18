@@ -13,7 +13,6 @@ import objectives as objectives
 from utils import Logger, Timer, save_model_light
 from utils import unpack_data_cubIC as unpack_data
 import wandb
-from test_functions_CUB import calculate_inception_features_for_gen_evaluation, calculate_fid
 
 parser = argparse.ArgumentParser(description='MMVAEplus Imgae-Captions')
 parser.add_argument('--experiment', type=str, default='', metavar='E',
@@ -24,7 +23,7 @@ parser.add_argument('--K', type=int, default=10,
                     help='number of samples when resampling in the latent space')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                     help='batch size for data')
-parser.add_argument('--epochs', type=int, default=300, metavar='E',
+parser.add_argument('--epochs', type=int, default=50, metavar='E',
                     help='number of epochs to train')
 parser.add_argument('--latent-dim-w', type=int, default=32, metavar='L',
                     help='latent dimensionality (default: 20)')
@@ -142,7 +141,6 @@ def train(epoch):
 
 
 def test(epoch):
-    # model.eval()
     b_loss = 0
     with torch.no_grad():
         for i, dataT in enumerate(test_loader):
@@ -160,79 +158,16 @@ def test(epoch):
     wandb.log({"Loss/test": epoch_loss}, step=epoch)
     print('====>             Test loss: {:.4f}'.format(epoch_loss))
 
-def calculate_fid_routine(datadirCUB, fid_path, num_fid_samples, epoch):
-    """ Calculate FID scores for unconditional and conditional generation """
-    total_cond = 0
-    # Create new directories for conditional FIDs
-    for j in [0]:
-        if os.path.exists(os.path.join(fid_path, 'test', 'm{}'.format(j))):
-            shutil.rmtree(os.path.join(fid_path, 'test', 'm{}'.format(j)))
-            os.makedirs(os.path.join(fid_path, 'test', 'm{}'.format(j)))
-        else:
-            os.makedirs(os.path.join(fid_path, 'test', 'm{}'.format(j)))
-        if os.path.exists(os.path.join(fid_path, 'random', 'm{}'.format(j))):
-            shutil.rmtree(os.path.join(fid_path, 'random', 'm{}'.format(j)))
-            os.makedirs(os.path.join(fid_path, 'random', 'm{}'.format(j)))
-        else:
-            os.makedirs(os.path.join(fid_path, 'random', 'm{}'.format(j)))
-        for i in [0, 1]:
-            if os.path.exists(os.path.join(fid_path, 'm{}'.format(i), 'm{}'.format(j))):
-                shutil.rmtree(os.path.join(fid_path, 'm{}'.format(i), 'm{}'.format(j)))
-                os.makedirs(os.path.join(fid_path, 'm{}'.format(i), 'm{}'.format(j)))
-            else:
-                os.makedirs(os.path.join(fid_path, 'm{}'.format(i), 'm{}'.format(j)))
-    with torch.no_grad():
-        # Generate unconditional fid samples
-        for tranche in range(num_fid_samples // 100):
-            kwargs_uncond = {
-                'savePath': fid_path,
-                'tranche': tranche
-            }
-            model.generate_unconditional(N=100, coherence_calculation=False, fid_calculation=True, **kwargs_uncond)
-        # Generate conditional fid samples
-        for i, dataT in enumerate(test_loader):
-            data = unpack_data(dataT, device=device)
-
-            if total_cond < num_fid_samples:
-                model.self_and_cross_modal_generation_for_fid_calculation(data, fid_path, i)
-                model.save_test_samples_for_fid_calculation(data, fid_path, i)
-                total_cond += data[0].size(0)
-        calculate_inception_features_for_gen_evaluation(args.inception_path, device,
-                                                        fid_path, datadirCUB)
-        # FID calculation
-        modality_target = 'm{}'.format(0)
-        file_activations_real = os.path.join(fid_path, 'test',
-                                             'real_activations_{}.npy'.format(modality_target))
-        feats_real = np.load(file_activations_real)
-        file_activations_randgen = os.path.join(fid_path, 'random',
-                                                    modality_target + '_activations.npy')
-        feats_randgen = np.load(file_activations_randgen)
-        fid_randval = calculate_fid(feats_real, feats_randgen)
-        wandb.log({"FID/Random/{}".format(modality_target): fid_randval}, step=epoch)
-        fid_condgen_target_list = []
-        for modality_source in ['m{}'.format(m) for m in [0,1]]:
-            file_activations_gen = os.path.join(fid_path, modality_source,
-                                                modality_target + '_activations.npy')
-            feats_gen = np.load(file_activations_gen)
-            fid_val = calculate_fid(feats_real, feats_gen)
-            wandb.log({"FID/{}/{}".format(modality_source, modality_target): fid_val}, step=epoch)
-            fid_condgen_target_list.append(fid_val)
-    # Clean up
-    if os.path.exists(fid_path):
-        shutil.rmtree(fid_path)
-        os.makedirs(fid_path)
 
 if __name__ == '__main__':
     with Timer('MMVAEplus') as t:
         for epoch in range(1, args.epochs + 1):
             train(epoch)
-            if epoch % 10 == 0:
+            if epoch % 1 == 0:
                 test(epoch)
-                # model.eval()
                 gen_samples = model.generate_unconditional(N=100, coherence_calculation=False, fid_calculation=False)
                 for j in range(NUM_VAES):
                     wandb.log({'Generations/m{}'.format(j): wandb.Image(gen_samples[j])}, step=epoch)
-                calculate_fid_routine(datadirCUB, fid_path, 10000, epoch)
             if epoch % 10 == 0:
                 save_model_light(model, runPath + '/model_'+str(epoch)+'.rar')
 

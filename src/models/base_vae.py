@@ -12,7 +12,6 @@ class VAE(nn.Module):
     """
     def __init__(self, prior_dist, likelihood_dist, post_dist, enc, dec, params):
         super(VAE, self).__init__()
-        # self.pu = prior_dist # Prior  class (shared latent)
         self.pw = prior_dist # Prior distribution class (private latent)
         self.px_u = likelihood_dist # Likelihood distribution class
         self.qu_x = post_dist # Posterior distribution class
@@ -20,7 +19,6 @@ class VAE(nn.Module):
         self.dec = dec # Decoder object
         self.modelName = None # Model name : defined in subclass
         self.params = params # Parameters (i.e. args passed to the main script)
-        # self._pu_params = None  # defined in subclass
         self._pw_params_aux = None # defined in subclass
         self._qu_x_params = None  # Parameters of posterior distributions: populated in forward
         self.llik_scaling = 1.0 # Likelihood scaling factor for each modality
@@ -53,8 +51,6 @@ class VAE(nn.Module):
         self._qu_x_params = self.enc(x) # Get encoding distribution params from encoder
         qu_x = self.qu_x(*self._qu_x_params) # Encoding distribution
         us = qu_x.rsample(torch.Size([K])) # K-sample reparameterization trick
-        # zs = qz_x.mean.unsqueeze(0)
-        # print(zs.size())
         px_u = self.px_u(*self.dec(us)) # Get decoding distribution
         return qu_x, px_u, us
 
@@ -62,7 +58,6 @@ class VAE(nn.Module):
         """
         Test-time reconstruction.
         """
-        self.eval()
         with torch.no_grad():
             qu_x = self.qu_x(*self.enc(data))
             latents = qu_x.rsample(torch.Size([1]))  # no dim expansion

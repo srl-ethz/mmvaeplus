@@ -69,7 +69,6 @@ class MMVAEplus(nn.Module):
         Returns:
             Generations
         """
-        #self.eval()
         with torch.no_grad():
             data = []
             # Sample N shared latents
@@ -94,7 +93,6 @@ class MMVAEplus(nn.Module):
     #     Returns:
     #         Reconstructions
     #     """
-    #     #self.eval()
     #     with torch.no_grad():
     #         _, px_zs, _ = self.forward(data)
     #         # cross-modal matrix of reconstructions
@@ -142,7 +140,6 @@ class MMVAEplus(nn.Module):
             Matrix of self- and cross-modal reconstructions
 
         """
-        #self.eval()
         with torch.no_grad():
             _, px_us, _ = self.self_and_cross_modal_generation_forward(data)
             # ------------------------------------------------
