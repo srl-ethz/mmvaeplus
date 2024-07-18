@@ -1,4 +1,4 @@
-# MMVAE+
+# MMVAE+: Enhancing the Generative Quality of Multimodal VAEs without Compromises
 
 Official PyTorch implementation for MMVAE+, introduced in the paper [MMVAE+: Enhancing the Generative Quality of Multimodal VAEs without Compromises](https://openreview.net/pdf?id=sdQGxouELX), published at ICLR 2023.
 
