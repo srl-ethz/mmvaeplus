@@ -38,11 +38,11 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
 parser.add_argument('--beta', type=float, default=1.0)
 parser.add_argument('--llik_scaling_sent', type=float, default=5.0,
                     help='likelihood scaling factor sentences')
-parser.add_argument('--datadir', type=str, default='/local/home/palumboe/data',
+parser.add_argument('--datadir', type=str, default='./data',
                     help=' Directory where data is stored and samples used for FID calculation are saved')
 parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
-parser.add_argument('--inception_path', type=str, default='/local/home/palumboe/data/pt_inception-2015-12-05-6726825d.pth',
+parser.add_argument('--inception_path', type=str, default='./data/pt_inception-2015-12-05-6726825d.pth',
                     help='Path to inception module for FID calculation')
 parser.add_argument('--priorposterior', type=str, default='Normal', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')

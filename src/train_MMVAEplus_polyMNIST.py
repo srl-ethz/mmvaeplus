@@ -43,13 +43,13 @@ parser.add_argument('--seed', type=int, default=2,
                     help='random seed')
 parser.add_argument('--beta', type=float, default=2.5,
                     help='beta hyperparameter in VAE objective')
-parser.add_argument('--datadir', type=str, default='/local/home/palumboe/data',
+parser.add_argument('--datadir', type=str, default='./data',
                     help=' Directory where data is stored and samples used for FID calculation are saved')
 parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
-parser.add_argument('--inception_path', type=str, default='/local/home/palumboe/data/pt_inception-2015-12-05-6726825d.pth',
+parser.add_argument('--inception_path', type=str, default='./data/pt_inception-2015-12-05-6726825d.pth',
                     help='Path to inception module for FID calculation')
-parser.add_argument('--pretrained-clfs-dir-path', type=str, default='/local/home/palumboe/data/trained_clfs_polyMNIST',
+parser.add_argument('--pretrained-clfs-dir-path', type=str, default='./data/trained_clfs_polyMNIST',
                     help="Path to directory containing pre-trained digit classifiers for each modality")
 parser.add_argument('--priorposterior', type=str, default='Laplace', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')
