@@ -135,12 +135,13 @@ def test(epoch):
             data = unpack_data(dataT, device=device)
             loss = -t_objective(model, data, K=args.K, test=True)
             b_loss += loss.item()
-            if i == 0 and epoch % 1 == 0:
+            # we ignore sample generation for now
+            # if i == 0 and epoch % 1 == 0:
                 # Compute cross-generations
-                cg_actions = model.self_and_cross_modal_generation(data, 10, 10)
-                for i in range(NUM_VAES):
-                    for j in range(NUM_VAES):
-                        wandb.log({'Cross_Generation/m{}/m{}'.format(i, j): wandb.Histogram(cg_actions[i][j])}, step=epoch)
+                # cg_actions = model.self_and_cross_modal_generation(data)
+                # for i in range(NUM_VAES):
+                #     for j in range(NUM_VAES):
+                #         wandb.log({'Cross_Generation/m{}/m{}'.format(i, j): wandb.Histogram(cg_actions[i][j])}, step=epoch)
     # Epoch test loss
     epoch_loss = b_loss / len(test_loader.dataset)
     wandb.log({"Loss/test": epoch_loss}, step=epoch)
