@@ -11,6 +11,19 @@ class RobotActionsDataset(Dataset):
         self.faive_angles = torch.tensor(self.data['faive_angles'], dtype=torch.float32)
         self.onedof_pose = torch.tensor(self.data['simple_gripper'], dtype=torch.float32)
         
+        # normalize data, possibly save these?
+        self.hand_pose_mean = self.hand_pose.mean()
+        self.hand_pose_std = self.hand_pose.std()
+        self.faive_angles_mean = self.faive_angles.mean()
+        self.faive_angles_std = self.faive_angles.std()
+        self.onedof_pose_mean = self.onedof_pose.mean()
+        self.onedof_pose_std = self.onedof_pose.std()
+
+        self.hand_pose = (self.hand_pose - self.hand_pose_mean) / self.hand_pose_std
+        self.faive_angles = (self.faive_angles - self.faive_angles_mean) / self.faive_angles_std
+        self.onedof_pose = (self.onedof_pose - self.onedof_pose_mean) / self.onedof_pose_std
+
+
         assert len(self.hand_pose) == len(self.faive_angles) == len(self.onedof_pose), "Data lengths do not match"
         assert torch.isnan(self.hand_pose).any() == False, "NaN in hand_pose"
         assert torch.isnan(self.faive_angles).any() == False, "NaN in faive_angles"

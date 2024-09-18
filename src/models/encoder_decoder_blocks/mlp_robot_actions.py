@@ -18,21 +18,11 @@ class RobotActionEncoder(nn.Module):
         self.fc_lv_z = nn.Linear(input_dim, latent_dim_z)
 
     def forward(self, x):
-        # check for nans
-        assert not torch.isnan(x).any(), "NaN in x"
-        print(f'Input shape: {x.shape}')
-        print(f'Expecting shape: {self.input_dim}')
 
         mu_w = self.fc_mu_w(x)
         lv_w = self.fc_lv_w(x)
         mu_z = self.fc_mu_z(x)
         lv_z = self.fc_lv_z(x)
-
-        # check for nans
-        assert not torch.isnan(mu_w).any(), "NaN in mu_w"
-        assert not torch.isnan(lv_w).any(), "NaN in lv_w"
-        assert not torch.isnan(mu_z).any(), "NaN in mu_z"
-        assert not torch.isnan(lv_z).any(), "NaN in lv_z"
 
         if self.dist == 'Normal':
             return torch.cat((mu_w, mu_z), dim=-1), \

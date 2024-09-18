@@ -29,7 +29,7 @@ parser.add_argument('--latent-dim-w', type=int, default=32, metavar='L',
                     help='latent dimensionality (default: 20)')
 parser.add_argument('--latent-dim-z', type=int, default=64, metavar='L',
                     help='latent dimensionality (default: 20)')
-parser.add_argument('--print-freq', type=int, default=1, metavar='f',
+parser.add_argument('--print-freq', type=int, default=50, metavar='f',
                     help='frequency with which to print stats (default: 0)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disable CUDA use')
@@ -96,7 +96,7 @@ wandb.init(
     project=args.experiment,
     config=args,
     name=runId,
-    mode="disabled" 
+    # mode="disabled" 
 )
 
 # preparation for training
@@ -117,11 +117,7 @@ def train(epoch):
     for i, dataT in enumerate(train_loader):
         data = unpack_data(dataT, device=device)
         optimizer.zero_grad()
-        try:
-            loss = -objective(model, data, K=args.K)
-        except Exception as e:
-            print(data)
-            raise e
+        loss = -objective(model, data, K=args.K)
         loss.backward()
         optimizer.step()
         b_loss += loss.item()
