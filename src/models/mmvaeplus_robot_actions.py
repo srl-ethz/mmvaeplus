@@ -57,9 +57,9 @@ class RobotActions(MMVAEplus):
             return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(-1) + Constants.eta
 
     @staticmethod
-    def getDataSets(batch_size, shuffle=True, device="cuda"):
+    def getDataLoaders(batch_size, shuffle=True, device="cuda"):
         # Implement the data loading for robot actions
-        data_path = 'path/to/your/robot_actions_data.npy'  # Update this path
+        data_path = '/data/erbauer/retargeting/retargeted_hand_dataset_combined_test.npy'  # Update this path
         train_loader, test_loader = get_robot_actions_dataloaders(
             data_path, batch_size, shuffle=shuffle, split_ratio=0.8, device=device
         )

@@ -5,16 +5,22 @@ import numpy as np
 class RobotActionsDataset(Dataset):
     def __init__(self, data_path):
         self.data = np.load(data_path, allow_pickle=True).item()
-        self.hand_pose = torch.tensor(self.data['hand_pose'], dtype=torch.float32)
+        self.hand_pose = torch.tensor(self.data['pose'], dtype=torch.float32)
+        # TODO: add shape to MANO input
+        self.hand_shape = torch.tensor(self.data['shape'], dtype=torch.float32)
         self.faive_angles = torch.tensor(self.data['faive_angles'], dtype=torch.float32)
-        self.onedof_pose = torch.tensor(self.data['1dof_pose'], dtype=torch.float32)
+        self.onedof_pose = torch.tensor(self.data['simple_gripper'], dtype=torch.float32)
         
         assert len(self.hand_pose) == len(self.faive_angles) == len(self.onedof_pose), "Data lengths do not match"
+        assert torch.isnan(self.hand_pose).any() == False, "NaN in hand_pose"
+        assert torch.isnan(self.faive_angles).any() == False, "NaN in faive_angles"
+        assert torch.isnan(self.onedof_pose).any() == False, "NaN in onedof_pose"
 
     def __len__(self):
         return len(self.hand_pose)
 
     def __getitem__(self, idx):
+
         return {
             'hand_pose': self.hand_pose[idx],
             'faive_angles': self.faive_angles[idx],

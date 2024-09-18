@@ -11,27 +11,28 @@ class RobotActionEncoder(nn.Module):
         self.latent_dim_w = latent_dim_w
         self.latent_dim_z = latent_dim_z
 
-        # Shared layers
-        self.shared = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU()
-        )
-
-        # Separate branches for w and z
-        self.fc_mu_w = nn.Linear(64, latent_dim_w)
-        self.fc_lv_w = nn.Linear(64, latent_dim_w)
-        self.fc_mu_z = nn.Linear(64, latent_dim_z)
-        self.fc_lv_z = nn.Linear(64, latent_dim_z)
+        # Separate branches for w and z, for now just simple linear layers
+        self.fc_mu_w = nn.Linear(input_dim, latent_dim_w)
+        self.fc_lv_w = nn.Linear(input_dim, latent_dim_w)
+        self.fc_mu_z = nn.Linear(input_dim, latent_dim_z)
+        self.fc_lv_z = nn.Linear(input_dim, latent_dim_z)
 
     def forward(self, x):
-        shared_output = self.shared(x)
-        
-        mu_w = self.fc_mu_w(shared_output)
-        lv_w = self.fc_lv_w(shared_output)
-        mu_z = self.fc_mu_z(shared_output)
-        lv_z = self.fc_lv_z(shared_output)
+        # check for nans
+        assert not torch.isnan(x).any(), "NaN in x"
+        print(f'Input shape: {x.shape}')
+        print(f'Expecting shape: {self.input_dim}')
+
+        mu_w = self.fc_mu_w(x)
+        lv_w = self.fc_lv_w(x)
+        mu_z = self.fc_mu_z(x)
+        lv_z = self.fc_lv_z(x)
+
+        # check for nans
+        assert not torch.isnan(mu_w).any(), "NaN in mu_w"
+        assert not torch.isnan(lv_w).any(), "NaN in lv_w"
+        assert not torch.isnan(mu_z).any(), "NaN in mu_z"
+        assert not torch.isnan(lv_z).any(), "NaN in lv_z"
 
         if self.dist == 'Normal':
             return torch.cat((mu_w, mu_z), dim=-1), \
@@ -56,8 +57,9 @@ class RobotActionDecoder(nn.Module):
             nn.Linear(128, output_dim)
         )
 
-    def forward(self, z):
-        return self.decoder(z)
+    def forward(self, u):
+        # returning mean and length scale, hardcoded?
+        return self.decoder(u), torch.tensor(0.01).to(u.device)
 
 class RobotActionVAE(nn.Module):
     def __init__(self, input_dim, latent_dim_w, latent_dim_z, dist):

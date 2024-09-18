@@ -1,64 +1,65 @@
-# Train MMVAEplus model for Robot Actions dataset
+# Train MMVAEplus on Robot Actions dataset
 import os
+import shutil
 import argparse
 import sys
 import json
 from pathlib import Path
 import numpy as np
+import torch
 from torch import optim
 import models
 import objectives as objectives
 from utils import Logger, Timer, save_model_light
-import shutil
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from statistics import mean
+from utils import unpack_data_robot_actions as unpack_data
 import wandb
 
-# Argument parsing
-parser = argparse.ArgumentParser(description='MMVAEplus Robot Actions Experiment')
+parser = argparse.ArgumentParser(description='MMVAEplus Robot Actions')
 parser.add_argument('--experiment', type=str, default='', metavar='E',
                     help='experiment name')
-parser.add_argument('--obj', type=str, default='elbo', choices=['elbo', 'dreg'],
+parser.add_argument('--obj', type=str, default='dreg', choices=['elbo', 'dreg'],
                     help='objective to use')
-parser.add_argument('--K', type=int, default=1,
+parser.add_argument('--K', type=int, default=10,
                     help='number of samples when resampling in the latent space')
-parser.add_argument('--beta', type=float, default=1.0,
-                    help='beta-VAE parameter')
-parser.add_argument('--epochs', type=int, default=100, metavar='N',
-                    help='number of epochs to train (default: 100)')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                    help='batch size for training (default: 64)')
-parser.add_argument('--latent-dim-w', type=int, default=32,
-                    help='dimension of latent space w')
-parser.add_argument('--latent-dim-z', type=int, default=32,
-                    help='dimension of latent space z')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
-                    help='random seed (default: 1)')
+parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+                    help='batch size for data')
+parser.add_argument('--epochs', type=int, default=50, metavar='E',
+                    help='number of epochs to train')
+parser.add_argument('--latent-dim-w', type=int, default=32, metavar='L',
+                    help='latent dimensionality (default: 20)')
+parser.add_argument('--latent-dim-z', type=int, default=64, metavar='L',
+                    help='latent dimensionality (default: 20)')
+parser.add_argument('--print-freq', type=int, default=1, metavar='f',
+                    help='frequency with which to print stats (default: 0)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='disables CUDA training')
-parser.add_argument('--outputdir', type=str, default='./results',
-                    help='output directory for results')
+                    help='disable CUDA use')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                    help='random seed')
+parser.add_argument('--beta', type=float, default=1.0)
+parser.add_argument('--llik_scaling_action', type=float, default=5.0,
+                    help='likelihood scaling factor for actions')
 parser.add_argument('--datadir', type=str, default='./data',
-                    help='directory where data is stored')
-parser.add_argument('--priorposterior', type=str, default='Laplace', choices=['Normal', 'Laplace'],
+                    help='Directory where data is stored')
+parser.add_argument('--outputdir', type=str, default='../outputs',
+                    help='Output directory')
+parser.add_argument('--priorposterior', type=str, default='Normal', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')
 
-# Args
+# args
 args = parser.parse_args()
 args.latent_dim_u = args.latent_dim_w + args.latent_dim_z
 
 # Random seed
+torch.backends.cudnn.benchmark = True
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-# CUDA setup
+# CUDA stuff
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if args.cuda else "cpu")
+print(device)
 
-# Get model class
-modelC = getattr(models, 'RobotActions')
+modelC = getattr(models, 'MMVAEplus_RobotActions')
 model = modelC(args).to(device)
 
 # Set experiment name if not set
@@ -66,95 +67,100 @@ if not args.experiment:
     args.experiment = model.modelName
 
 # Set up run path
-runId = f"{args.latent_dim_w}_{args.latent_dim_z}_{args.beta}_{args.seed}"
+runId = str(args.latent_dim_w) + '_' + str(args.latent_dim_z) + '_' + str(args.beta) + '_' + str(args.seed)
 experiment_dir = Path(os.path.join(args.outputdir, args.experiment, "checkpoints"))
 experiment_dir.mkdir(parents=True, exist_ok=True)
 runPath = os.path.join(str(experiment_dir), runId)
 if os.path.exists(runPath):
     shutil.rmtree(runPath)
 os.makedirs(runPath)
-sys.stdout = Logger(f'{runPath}/run.log')
+sys.stdout = Logger('{}/run.log'.format(runPath))
 print('Expt:', runPath)
 print('RunID:', runId)
 
 NUM_VAES = len(model.vaes)
 
-# Save args to run
-with open(f'{runPath}/args.json', 'w') as fp:
-    json.dump(args.__dict__, fp)
-torch.save(args, f'{runPath}/args.rar')
+# Create path where to temporarily save data for evaluation
+eval_path = os.path.join(args.datadir, 'eval_Robot_Actions' + (runPath.rsplit('/')[-1]))
+datadirRobotActions = os.path.join(args.datadir, "Robot_Actions")
 
-# WandB setup
+# save args to run
+with open('{}/args.json'.format(runPath), 'w') as fp:
+    json.dump(args.__dict__, fp)
+torch.save(args, '{}/args.rar'.format(runPath))
+
+# WandB
 wandb.login()
+
 wandb.init(
     project=args.experiment,
     config=args,
-    name=runId
+    name=runId,
+    mode="disabled" 
 )
 
-# Optimizer
+# preparation for training
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                        lr=1e-3, amsgrad=True)
 
-# Data loaders
-train_loader, test_loader = model.getDataSets(args.batch_size, device=device)
+# Load Robot Actions dataset
+train_loader, test_loader = model.getDataLoaders(args.batch_size, device=device)
+objective = getattr(objectives,
+                    ('m_' if hasattr(model, 'vaes') else '')
+                    + args.obj)
+t_objective = objective
 
-# Training function
 def train(epoch):
     model.train()
-    train_loss = 0
-    for batch_idx, data in enumerate(train_loader):
-        data = [d.to(device) for d in data]
+    b_loss = 0
+    print(f'Length of train_loader: {len(train_loader)}')
+    for i, dataT in enumerate(train_loader):
+        data = unpack_data(dataT, device=device)
         optimizer.zero_grad()
-        
-        if args.obj == 'elbo':
-            loss = -objectives.elbo(model, data, args.K, args.beta)
-        elif args.obj == 'dreg':
-            loss = -objectives.dreg(model, data, args.K, args.beta)
-        
+        try:
+            loss = -objective(model, data, K=args.K)
+        except Exception as e:
+            print(data)
+            raise e
         loss.backward()
-        train_loss += loss.item()
         optimizer.step()
-        
-        if batch_idx % 100 == 0:
-            print(f'Train Epoch: {epoch} [{batch_idx * len(data[0])}/{len(train_loader.dataset)} '
-                  f'({100. * batch_idx / len(train_loader):.0f}%)]\tLoss: {loss.item():.6f}')
-    
-    print(f'====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.4f}')
-    wandb.log({"train_loss": train_loss / len(train_loader)}, step=epoch)
+        b_loss += loss.item()
+        if args.print_freq > 0 and i % args.print_freq == 0:
+            print("iteration {:04d}: loss: {:6.3f}".format(i, loss.item() / args.batch_size))
+    # Epoch loss
+    epoch_loss = b_loss / len(train_loader.dataset)
+    wandb.log({"Loss/train": epoch_loss}, step=epoch)
+    print('====> Epoch: {:03d} Train loss: {:.4f}'.format(epoch, epoch_loss))
 
-# Test function
 def test(epoch):
-    model.eval()
-    test_loss = 0
+    b_loss = 0
     with torch.no_grad():
-        for data in test_loader:
-            data = [d.to(device) for d in data]
-            if args.obj == 'elbo':
-                loss = -objectives.elbo(model, data, args.K, args.beta)
-            elif args.obj == 'dreg':
-                loss = -objectives.dreg(model, data, args.K, args.beta)
-            test_loss += loss.item()
-    
-    test_loss /= len(test_loader)
-    print(f'====> Test set loss: {test_loss:.4f}')
-    wandb.log({"test_loss": test_loss}, step=epoch)
+        for i, dataT in enumerate(test_loader):
+            data = unpack_data(dataT, device=device)
+            loss = -t_objective(model, data, K=args.K, test=True)
+            b_loss += loss.item()
+            if i == 0 and epoch % 1 == 0:
+                # Compute cross-generations
+                cg_actions = model.self_and_cross_modal_generation(data, 10, 10)
+                for i in range(NUM_VAES):
+                    for j in range(NUM_VAES):
+                        wandb.log({'Cross_Generation/m{}/m{}'.format(i, j): wandb.Histogram(cg_actions[i][j])}, step=epoch)
+    # Epoch test loss
+    epoch_loss = b_loss / len(test_loader.dataset)
+    wandb.log({"Loss/test": epoch_loss}, step=epoch)
+    print('====>             Test loss: {:.4f}'.format(epoch_loss))
 
-# Main training loop
 if __name__ == '__main__':
-    with Timer('MMVAEplus Robot Actions') as t:
+    with Timer('MMVAEplus') as t:
         for epoch in range(1, args.epochs + 1):
+            print(f'Entering train epoch {epoch}')
             train(epoch)
-            test(epoch)
-            
+            print(f'Finished train epoch {epoch}')
+            if epoch % 1 == 0:
+                test(epoch)
+                # gen_samples = model.generate_unconditional(N=100)
+                # for j in range(NUM_VAES):
+                    # wandb.log({'Generations/m{}'.format(j): wandb.Histogram(gen_samples[j])}, step=epoch)
             if epoch % 10 == 0:
-                # Save model checkpoint
-                save_model_light(model, optimizer, epoch, runPath)
-                
-                # Generate samples
-                gen_samples = model.generate_unconditional(N=10)
-                for j in range(NUM_VAES):
-                    wandb.log({f'Generations/m{j}': wandb.Histogram(gen_samples[j].cpu().numpy())}, step=epoch)
+                save_model_light(model, runPath + '/model_'+str(epoch)+'.rar')
 
-    print(f"Total time taken: {t.interval:.2f} seconds")
-    wandb.finish()

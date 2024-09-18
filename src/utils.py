@@ -85,6 +85,14 @@ def unpack_data_PM(data, device='cuda'):
 def unpack_data_cubIC(data, device='cuda'):
     return [data[0][0].to(device), data[1][0].to(device)]
 
+def unpack_data_robot_actions(data, device='cuda'):
+    # need to be in samee order as the vaes in the model, this is not handled with a dict but rather with a list
+    # should be changed in the future
+    return_list = []
+    return_list.append(data['faive_angles'].to(device))
+    return_list.append(data['hand_pose'].to(device))
+    return_list.append(data['1dof_pose'].to(device))
+    return return_list
 
 def get_mean(d, K=100):
     """
