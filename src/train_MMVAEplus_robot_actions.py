@@ -13,6 +13,7 @@ import objectives as objectives
 from utils import Logger, Timer, save_model_light
 from utils import unpack_data_robot_actions as unpack_data
 import wandb
+import pickle
 
 parser = argparse.ArgumentParser(description='MMVAEplus Robot Actions')
 parser.add_argument('--experiment', type=str, default='', metavar='E',
@@ -56,7 +57,7 @@ np.random.seed(args.seed)
 
 # CUDA stuff
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-device = torch.device("cuda" if args.cuda else "cpu")
+device = torch.device("cuda:2" if args.cuda else "cpu")
 print(device)
 
 modelC = getattr(models, 'MMVAEplus_RobotActions')
@@ -136,9 +137,12 @@ def test(epoch):
             loss = -t_objective(model, data, K=args.K, test=True)
             b_loss += loss.item()
             # we ignore sample generation for now
-            # if i == 0 and epoch % 1 == 0:
+            if i == 0 and epoch % 1 == 0:
                 # Compute cross-generations
-                # cg_actions = model.self_and_cross_modal_generation(data)
+                cg_actions = model.self_and_cross_modal_generation(data)
+                # save samples to file
+                with open(f'{runPath}/conditional_samples_{epoch}.pkl', 'wb') as f:
+                    pickle.dump(cg_actions, f)
                 # for i in range(NUM_VAES):
                 #     for j in range(NUM_VAES):
                 #         wandb.log({'Cross_Generation/m{}/m{}'.format(i, j): wandb.Histogram(cg_actions[i][j])}, step=epoch)
@@ -146,18 +150,24 @@ def test(epoch):
     epoch_loss = b_loss / len(test_loader.dataset)
     wandb.log({"Loss/test": epoch_loss}, step=epoch)
     print('====>             Test loss: {:.4f}'.format(epoch_loss))
+    return epoch_loss
 
 if __name__ == '__main__':
+    best_val_loss = float('inf')
     with Timer('MMVAEplus') as t:
         for epoch in range(1, args.epochs + 1):
-            print(f'Entering train epoch {epoch}')
             train(epoch)
-            print(f'Finished train epoch {epoch}')
             if epoch % 1 == 0:
-                test(epoch)
-                # gen_samples = model.generate_unconditional(N=100)
+                val_loss = test(epoch)
+                gen_samples = model.generate_unconditional(N=100)
+                # save samples to file
+                with open(f'{runPath}/unconditional_samples_{epoch}.pkl', 'wb') as f:
+                    pickle.dump(gen_samples, f)
                 # for j in range(NUM_VAES):
                     # wandb.log({'Generations/m{}'.format(j): wandb.Histogram(gen_samples[j])}, step=epoch)
             if epoch % 10 == 0:
                 save_model_light(model, runPath + '/model_'+str(epoch)+'.rar')
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                save_model_light(model, runPath + '/model_best.rar')
 

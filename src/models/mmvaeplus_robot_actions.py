@@ -59,8 +59,35 @@ class RobotActions(MMVAEplus):
     @staticmethod
     def getDataLoaders(batch_size, shuffle=True, device="cuda"):
         # Implement the data loading for robot actions
-        data_path = '/data/erbauer/retargeting/retargeted_hand_dataset_combined_test.npy'  # Update this path
+        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_test.npy'  # Update this path
         train_loader, test_loader = get_robot_actions_dataloaders(
             data_path, batch_size, shuffle=shuffle, split_ratio=0.8, device=device
         )
         return train_loader, test_loader
+
+    def self_and_cross_modal_generation(self, data, num=10, N=10):
+        """
+        Self- and cross-modal generation for robot actions.
+        Args:
+            data: Input data (list of tensors for each modality)
+            num: Number of samples to be considered for generation
+            N: Number of generations
+
+        Returns:
+            List of lists containing generated samples for each modality
+        """
+        recon_tries = [[[] for _ in range(len(self.vaes))] for _ in range(len(self.vaes))]
+        outputs = [[[] for _ in range(len(self.vaes))] for _ in range(len(self.vaes))]
+
+        for _ in range(N):
+            recons_mat = super(RobotActions, self).self_and_cross_modal_generation([d[:num] for d in data])
+            for r, recons_list in enumerate(recons_mat):
+                for o, recon in enumerate(recons_list):
+                    recon = recon.cpu()
+                    recon_tries[r][o].append(recon)
+
+        for r, recons_list in enumerate(recons_mat):
+            for o, _ in enumerate(recons_list):
+                outputs[r][o] = torch.stack(recon_tries[r][o])
+
+        return outputs
