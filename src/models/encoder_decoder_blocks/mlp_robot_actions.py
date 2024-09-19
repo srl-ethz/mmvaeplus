@@ -3,6 +3,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils import Constants
 
+class MLP(nn.Module):
+    def __init__(self, input_dim, hidden_dims=[128, 128], output_dim=None):
+        super(MLP, self).__init__()
+        layers = []
+        prev_dim = input_dim
+        for hidden_dim in hidden_dims:
+            layers.append(nn.Linear(prev_dim, hidden_dim))
+            layers.append(nn.ReLU())
+            layers.append(nn.LayerNorm(hidden_dim))
+            prev_dim = hidden_dim
+        if output_dim is not None:
+            layers.append(nn.Linear(prev_dim, output_dim))
+        self.mlp = nn.Sequential(*layers)
+    def forward(self, x):
+        return self.mlp(x)
+
 class RobotActionEncoder(nn.Module):
     def __init__(self, input_dim, latent_dim_w, latent_dim_z, dist):
         super(RobotActionEncoder, self).__init__()
@@ -11,18 +27,17 @@ class RobotActionEncoder(nn.Module):
         self.latent_dim_w = latent_dim_w
         self.latent_dim_z = latent_dim_z
 
-        # Separate branches for w and z, for now just simple linear layers
-        self.fc_mu_w = nn.Linear(input_dim, latent_dim_w)
-        self.fc_lv_w = nn.Linear(input_dim, latent_dim_w)
-        self.fc_mu_z = nn.Linear(input_dim, latent_dim_z)
-        self.fc_lv_z = nn.Linear(input_dim, latent_dim_z)
+        # Separate MLPs for w and z
+        self.mlp_w_mu = MLP(input_dim, [2048, 2048], latent_dim_w)
+        self.mlp_w_lv = MLP(input_dim, [2048, 2048], latent_dim_w)
+        self.mlp_z_mu = MLP(input_dim, [2048, 2048], latent_dim_z)
+        self.mlp_z_lv = MLP(input_dim, [2048, 2048], latent_dim_z)
 
     def forward(self, x):
-
-        mu_w = self.fc_mu_w(x)
-        lv_w = self.fc_lv_w(x)
-        mu_z = self.fc_mu_z(x)
-        lv_z = self.fc_lv_z(x)
+        mu_w = self.mlp_w_mu(x)
+        lv_w = self.mlp_w_lv(x)
+        mu_z = self.mlp_z_mu(x)
+        lv_z = self.mlp_z_lv(x)
 
         if self.dist == 'Normal':
             return torch.cat((mu_w, mu_z), dim=-1), \
@@ -39,13 +54,7 @@ class RobotActionDecoder(nn.Module):
         self.latent_dim_u = latent_dim_u
         self.output_dim = output_dim
 
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim_u, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, output_dim)
-        )
+        self.decoder = MLP(latent_dim_u, [2048, 2048], output_dim)
 
     def forward(self, u):
         # returning mean and length scale, hardcoded?
