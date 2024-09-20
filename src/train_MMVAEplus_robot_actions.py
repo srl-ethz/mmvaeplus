@@ -10,7 +10,7 @@ import torch
 from torch import optim
 import models
 import objectives as objectives
-from utils import Logger, Timer, save_model_light
+from utils import Logger, Timer, save_model_light, move_to_device
 from utils import unpack_data_robot_actions as unpack_data
 import wandb
 import pickle
@@ -45,6 +45,10 @@ parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
 parser.add_argument('--priorposterior', type=str, default='Normal', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')
+parser.add_argument('--mlp_hidden_dim', type=int, default=2048,
+                    help='hidden dimension for MLPs')
+parser.add_argument('--num_hidden_layers', type=int, default=2,
+                    help='number of hidden layers for MLPs')
 
 # args
 args = parser.parse_args()
@@ -57,7 +61,7 @@ np.random.seed(args.seed)
 
 # CUDA stuff
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-device = torch.device("cuda:2" if args.cuda else "cpu")
+device = torch.device("cuda:1" if args.cuda else "cpu")
 print(device)
 
 modelC = getattr(models, 'MMVAEplus_RobotActions')
@@ -67,8 +71,17 @@ model = modelC(args).to(device)
 if not args.experiment:
     args.experiment = model.modelName
 
+# WandB
+wandb.login()
+
+wandb.init(
+    project=args.experiment,
+    config=args,
+    # mode="disabled" 
+)
+
+runId = wandb.run.name
 # Set up run path
-runId = str(args.latent_dim_w) + '_' + str(args.latent_dim_z) + '_' + str(args.beta) + '_' + str(args.seed)
 experiment_dir = Path(os.path.join(args.outputdir, args.experiment, "checkpoints"))
 experiment_dir.mkdir(parents=True, exist_ok=True)
 runPath = os.path.join(str(experiment_dir), runId)
@@ -90,15 +103,6 @@ with open('{}/args.json'.format(runPath), 'w') as fp:
     json.dump(args.__dict__, fp)
 torch.save(args, '{}/args.rar'.format(runPath))
 
-# WandB
-wandb.login()
-
-wandb.init(
-    project=args.experiment,
-    config=args,
-    name=runId,
-    # mode="disabled" 
-)
 
 # preparation for training
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
@@ -114,7 +118,6 @@ t_objective = objective
 def train(epoch):
     model.train()
     b_loss = 0
-    print(f'Length of train_loader: {len(train_loader)}')
     for i, dataT in enumerate(train_loader):
         data = unpack_data(dataT, device=device)
         optimizer.zero_grad()
@@ -142,7 +145,7 @@ def test(epoch):
                 cg_actions = model.self_and_cross_modal_generation(data)
                 # save samples to file
                 with open(f'{runPath}/conditional_samples_{epoch}.pkl', 'wb') as f:
-                    pickle.dump(cg_actions, f)
+                    pickle.dump(move_to_device(cg_actions, device='cpu'), f)
                 # for i in range(NUM_VAES):
                 #     for j in range(NUM_VAES):
                 #         wandb.log({'Cross_Generation/m{}/m{}'.format(i, j): wandb.Histogram(cg_actions[i][j])}, step=epoch)
@@ -162,7 +165,7 @@ if __name__ == '__main__':
                 gen_samples = model.generate_unconditional(N=100)
                 # save samples to file
                 with open(f'{runPath}/unconditional_samples_{epoch}.pkl', 'wb') as f:
-                    pickle.dump(gen_samples, f)
+                    pickle.dump(move_to_device(gen_samples, device='cpu'), f)
                 # for j in range(NUM_VAES):
                     # wandb.log({'Generations/m{}'.format(j): wandb.Histogram(gen_samples[j])}, step=epoch)
             if epoch % 10 == 0:

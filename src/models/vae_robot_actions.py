@@ -12,8 +12,8 @@ class RobotActionVAE(VAE):
             dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,  # prior
             dist.Normal,  # likelihood
             dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,  # posterior
-            RobotActionEncoder(input_dim, params.latent_dim_w, params.latent_dim_z, params.priorposterior),  # Encoder
-            RobotActionDecoder(params.latent_dim_w + params.latent_dim_z, input_dim),  # Decoder
+            RobotActionEncoder(input_dim, params.latent_dim_w, params.latent_dim_z, params.priorposterior, params.mlp_hidden_dim, params.num_hidden_layers),  # Encoder
+            RobotActionDecoder(params.latent_dim_w + params.latent_dim_z, input_dim, params.mlp_hidden_dim, params.num_hidden_layers),  # Decoder
             params
         )
         self._pw_params_aux = nn.ParameterList([

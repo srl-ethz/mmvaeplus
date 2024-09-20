@@ -21,6 +21,13 @@ class Constants(object):
 def is_multidata(dataB):
     return isinstance(dataB, list) or isinstance(dataB, tuple)
 
+def move_to_device(data, device='cpu'):
+    if isinstance(data, tuple) or isinstance(data, list):
+        return [move_to_device(item, device) for item in data]
+    elif isinstance(data, torch.Tensor):
+        return data.to(device)
+    else:
+        raise ValueError(f"Invalid data type: {type(data)}")
 
 # https://stackoverflow.com/questions/14906764/how-to-redirect-stdout-to-both-file-and-console-with-scripting
 class Logger(object):
