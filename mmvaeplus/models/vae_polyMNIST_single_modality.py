@@ -6,9 +6,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.utils import save_image, make_grid
-from utils import Constants
+from mmvaeplus.utils import Constants
 from .base_vae import VAE
-from datasets_PolyMNIST import PolyMNISTDataset
+from mmvaeplus.datasets_PolyMNIST import PolyMNISTDataset
 from .encoder_decoder_blocks.resnet_polyMNIST import Enc, Dec
 
 # Constants

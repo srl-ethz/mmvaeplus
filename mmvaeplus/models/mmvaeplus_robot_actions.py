@@ -1,11 +1,20 @@
 import torch
 import torch.nn as nn
+from torchvision.utils import make_grid
 import torch.nn.functional as F
 import torch.distributions as dist
 from .mmvaeplus import MMVAEplus
 from .vae_robot_actions import RobotAction11d, RobotAction45d, RobotAction1d
-from utils import Constants
-from dataset_robot_actions import get_robot_actions_dataloaders
+from mmvaeplus.utils import Constants
+from mmvaeplus.dataset_robot_actions import get_robot_actions_dataloaders
+import json
+import os
+
+def build_model(checkpoint_dir, epoch, device='cuda'):
+    args = torch.load(os.path.join(checkpoint_dir, f'args.rar'), map_location=device)
+    model = RobotActions(args)
+    model.load_state_dict(torch.load(os.path.join(checkpoint_dir, f'model_{epoch}.rar'), map_location=device))
+    return model
 
 class RobotActions(MMVAEplus):
     """
@@ -59,35 +68,34 @@ class RobotActions(MMVAEplus):
     @staticmethod
     def getDataLoaders(batch_size, shuffle=True, device="cuda"):
         # Implement the data loading for robot actions
-        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_test.npy'  # Update this path
-        train_loader, test_loader = get_robot_actions_dataloaders(
+        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_full_arctic.npy'  # Update this path
+        train_loader, test_loader, dataset_stats = get_robot_actions_dataloaders(
             data_path, batch_size, shuffle=shuffle, split_ratio=0.8, device=device
         )
-        return train_loader, test_loader
+        return train_loader, test_loader, dataset_stats
 
-    def self_and_cross_modal_generation(self, data, num=10, N=10):
+
+    def self_and_cross_modal_generation(self, data, num=3,N=10):
         """
-        Self- and cross-modal generation for robot actions.
+        Self- and cross-modal generation.
         Args:
-            data: Input data (list of tensors for each modality)
-            num: Number of samples to be considered for generation
+            data: Input
+            num: Number of samples to be considered for generation -> max. number of different modalities
             N: Number of generations
 
         Returns:
-            List of lists containing generated samples for each modality
+            Generations
         """
-        recon_tries = [[[] for _ in range(len(self.vaes))] for _ in range(len(self.vaes))]
-        outputs = [[[] for _ in range(len(self.vaes))] for _ in range(len(self.vaes))]
-
-        for _ in range(N):
+        recon_triess = [[[] for i in range(num)] for j in range(num)]
+        outputss = [[[] for i in range(num)] for j in range(num)]
+        for i in range(N):
             recons_mat = super(RobotActions, self).self_and_cross_modal_generation([d[:num] for d in data])
             for r, recons_list in enumerate(recons_mat):
                 for o, recon in enumerate(recons_list):
-                    recon = recon.cpu()
-                    recon_tries[r][o].append(recon)
-
+                      recon = recon.squeeze(0).cpu()
+                      recon_triess[r][o].append(recon)
         for r, recons_list in enumerate(recons_mat):
-            for o, _ in enumerate(recons_list):
-                outputs[r][o] = torch.stack(recon_tries[r][o])
-
-        return outputs
+            for o, recon in enumerate(recons_list):
+                # outputss[r][o] = make_grid(torch.cat([data[r][:num].cpu()]+recon_triess[r][o]), nrow=num)
+                outputss[r][o] = (data[r][:num].cpu(), recon_triess[r][o])
+        return outputss

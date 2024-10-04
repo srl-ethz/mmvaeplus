@@ -2,14 +2,19 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-from utils import Constants
+from mmvaeplus.utils import Constants
 
 # Constants
-dataSize = torch.Size([3, 28, 28])
+imgChans = 3
+fBase = 64
+
+
+# ResNet Block specifications
 
 def actvn(x):
     out = torch.nn.functional.leaky_relu(x, 2e-1)
     return out
+
 
 class ResnetBlock(nn.Module):
     def __init__(self, fin, fout, fhidden=None, is_bias=True):
@@ -47,16 +52,16 @@ class ResnetBlock(nn.Module):
 
 
 # Classes
-class Enc(nn.Module):
-    """ Encoder Image PolyMNIST Resnet """
+class EncoderImg(nn.Module):
+    """ Generate latent parameters for SVHN image data. """
 
-    def __init__(self, ndim_w, ndim_z, dist='Normal'):
+    def __init__(self, ndim_w, ndim_z, dist):
         super().__init__()
         self.dist = dist
-        s0 = self.s0 = 7  # kwargs['s0']
+        s0 = self.s0 = 2  # kwargs['s0']
         nf = self.nf = 64  # nfilter
-        nf_max = self.nf_max = 1024  # nfilter_max
-        size = 28
+        nf_max = self.nf_max = 256  # nfilter_max
+        size = 64
 
         # Submodules
         nlayers = int(np.log2(size / s0))
@@ -95,47 +100,48 @@ class Enc(nn.Module):
     def forward(self, x):
         # batch_size = x.size(0)
         out_w = self.conv_img_w(x)
-        out_w = self.resnet_w(out_w)
-        out_w = out_w.view(out_w.size()[0], self.nf0*self.s0*self.s0)
-        lv_w = self.fc_lv_w(out_w)
-
         out_z = self.conv_img_z(x)
+        out_w = self.resnet_w(out_w)
         out_z = self.resnet_z(out_z)
+        out_w = out_w.view(out_w.size()[0], self.nf0 * self.s0 * self.s0)
         out_z = out_z.view(out_z.size()[0], self.nf0 * self.s0 * self.s0)
+        lv_w = self.fc_lv_w(out_w)
+        mu_w = self.fc_mu_w(out_w)
         lv_z = self.fc_lv_z(out_z)
+        mu_z = self.fc_mu_z(out_z)
 
         if self.dist == 'Normal':
-            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_z(out_z)), dim=-1), \
-                   torch.cat((F.softplus(lv_w) + Constants.eta,
-                              F.softplus(lv_z) + Constants.eta), dim=-1)
+            return torch.cat((mu_w, mu_z), dim=-1),\
+               torch.cat((F.softplus(lv_w).squeeze() + Constants.eta, F.softplus(lv_z).squeeze() + Constants.eta), dim=-1)
         else:
-            return torch.cat((self.fc_mu_w(out_w), self.fc_mu_z(out_z)), dim=-1), \
-                   torch.cat((F.softmax(lv_w, dim=-1) * lv_w.size(-1) + Constants.eta,
-                              F.softmax(lv_z, dim=-1) * lv_z.size(-1) + Constants.eta), dim=-1)
+            return torch.cat((mu_w, mu_z), dim=-1), \
+                   torch.cat((F.softmax(lv_w, dim=-1) * lv_w.size(-1) + Constants.eta, F.softmax(lv_z, dim=-1) * lv_z.size(-1) + Constants.eta),
+                             dim=-1)
 
 
-class Dec(nn.Module):
-    """ Decoder Image PolyMNIST Resnet """
+
+class DecoderImg(nn.Module):
+    """ Generate a SVHN image given a sample from the latent space. """
 
     def __init__(self, ndim):
         super().__init__()
 
         # NOTE: I've set below variables according to Kieran's suggestions
-        s0 = self.s0 = 7  # kwargs['s0']
+        s0 = self.s0 = 2  # kwargs['s0']
         nf = self.nf = 64  # nfilter
-        nf_max = self.nf_max = 512  # nfilter_max
-        size = 28
+        nf_max = self.nf_max = 256  # nfilter_max
+        size = 64
 
         # Submodules
         nlayers = int(np.log2(size / s0))
-        self.nf0 = min(nf_max, nf * 2**nlayers)
+        self.nf0 = min(nf_max, nf * 2 ** nlayers)
 
-        self.fc = nn.Linear(ndim, self.nf0*s0*s0)
+        self.fc = nn.Linear(ndim, self.nf0 * s0 * s0)
 
         blocks = []
         for i in range(nlayers):
-            nf0 = min(nf * 2**(nlayers-i), nf_max)
-            nf1 = min(nf * 2**(nlayers-i-1), nf_max)
+            nf0 = min(nf * 2 ** (nlayers - i), nf_max)
+            nf1 = min(nf * 2 ** (nlayers - i - 1), nf_max)
             blocks += [
                 ResnetBlock(nf0, nf1),
                 nn.Upsample(scale_factor=2)
@@ -152,8 +158,10 @@ class Dec(nn.Module):
         out = self.fc(u).view(-1, self.nf0, self.s0, self.s0)
         out = self.resnet(out)
         out = self.conv_img(actvn(out))
-
+        #if len(z.size()) == 2:
+        #out = out.view(*z.size()[:1], *out.size()[1:]).unsqueeze(0)
+        #else:
         out = out.view(*u.size()[:2], *out.size()[1:])
-
         # consider also predicting the length scale
-        return out, torch.tensor(0.75).to(u.device)  # mean, length scale
+        return out, torch.tensor(0.01).to(u.device)  # mean, length scale
+        # return torch.tanh(out), torch.sigmoid(out)

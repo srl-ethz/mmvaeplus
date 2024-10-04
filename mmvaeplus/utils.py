@@ -17,7 +17,6 @@ from scipy.optimize import linear_sum_assignment as linear_assignment
 class Constants(object):
     eta = 1e-20
 
-
 def is_multidata(dataB):
     return isinstance(dataB, list) or isinstance(dataB, tuple)
 

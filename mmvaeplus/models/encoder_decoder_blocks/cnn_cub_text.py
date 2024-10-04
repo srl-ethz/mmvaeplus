@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from utils import Constants
+from mmvaeplus.utils import Constants
 
 # Constants
 maxSentLen = 32  # max length of any description for birds dataset

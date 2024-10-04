@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as dist
-from utils import Constants
+from mmvaeplus.utils import Constants
 from .base_vae import VAE
 from .encoder_decoder_blocks.mlp_robot_actions import RobotActionEncoder, RobotActionDecoder
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 from torchvision import datasets, transforms
-from utils import Constants
+from mmvaeplus.utils import Constants
 from .base_vae import VAE
 from .encoder_decoder_blocks.resnet_cub_image import EncoderImg, DecoderImg
 

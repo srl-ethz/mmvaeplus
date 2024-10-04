@@ -5,9 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.utils import save_image, make_grid
 from torchvision import transforms
-from datasets_PolyMNIST import PolyMNISTDataset
-from utils import Constants
-from .mmvaeplus import MMVAEplus
+from mmvaeplus.datasets_PolyMNIST import PolyMNISTDataset
+from mmvaeplus.utils import Constants
+from mmvaeplus.models import MMVAEplus
 from .vae_polyMNIST_single_modality import PolyMNIST
 from numpy import sqrt
 

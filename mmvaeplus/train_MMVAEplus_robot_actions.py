@@ -49,6 +49,8 @@ parser.add_argument('--mlp_hidden_dim', type=int, default=2048,
                     help='hidden dimension for MLPs')
 parser.add_argument('--num_hidden_layers', type=int, default=2,
                     help='number of hidden layers for MLPs')
+parser.add_argument('--cuda-device-id', type=int, default=0,
+                    help='CUDA device ID')
 
 # args
 args = parser.parse_args()
@@ -61,7 +63,7 @@ np.random.seed(args.seed)
 
 # CUDA stuff
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-device = torch.device("cuda:1" if args.cuda else "cpu")
+device = torch.device(f"cuda:{args.cuda_device_id}" if args.cuda else "cpu")
 print(device)
 
 modelC = getattr(models, 'MMVAEplus_RobotActions')
@@ -77,7 +79,7 @@ wandb.login()
 wandb.init(
     project=args.experiment,
     config=args,
-    # mode="disabled" 
+    mode="disabled" 
 )
 
 runId = wandb.run.name
@@ -109,7 +111,12 @@ optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                        lr=1e-3, amsgrad=True)
 
 # Load Robot Actions dataset
-train_loader, test_loader = model.getDataLoaders(args.batch_size, device=device)
+train_loader, test_loader, dataset_stats = model.getDataLoaders(args.batch_size, device=device)
+
+# save dataset stats to run
+with open(f'{runPath}/dataset_stats.pkl', 'wb') as fp:
+    pickle.dump(dataset_stats, fp)
+
 objective = getattr(objectives,
                     ('m_' if hasattr(model, 'vaes') else '')
                     + args.obj)
@@ -139,7 +146,6 @@ def test(epoch):
             data = unpack_data(dataT, device=device)
             loss = -t_objective(model, data, K=args.K, test=True)
             b_loss += loss.item()
-            # we ignore sample generation for now
             if i == 0 and epoch % 1 == 0:
                 # Compute cross-generations
                 cg_actions = model.self_and_cross_modal_generation(data)

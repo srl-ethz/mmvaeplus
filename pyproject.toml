@@ -1,0 +1,23 @@
+[build-system]
+requires = [
+  "flit_core >=2",
+  "numpy>=1.18.0",
+  "scipy>=1.4.1",
+  "opencv-python>=4.9.0",
+  "tqdm>=4.50.2",
+  "pillow>=10.3.0",
+]
+build-backend = "flit_core.buildapi"
+
+[project]
+name =  "mmvaeplus"
+authors = [
+    {name = "Erik Bauer", email = "erbauer@ethz.ch"},
+]
+description = "Package for multimodal variational autoencoders."
+# readme = "README.md"
+version = "0.1.0"
+
+
+[tool.flit.module]
+name = "mmvaeplus"

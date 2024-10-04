@@ -1,7 +1,7 @@
 # Base MMVAEplus class definition
 import torch
 import torch.nn as nn
-from utils import get_mean
+from mmvaeplus.utils import get_mean
 
 class MMVAEplus(nn.Module):
     """

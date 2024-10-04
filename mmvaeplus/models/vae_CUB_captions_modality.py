@@ -7,11 +7,11 @@ import torch.distributions as dist
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
-from utils import Constants
+from mmvaeplus.utils import Constants
 from .base_vae import VAE
 from .encoder_decoder_blocks.cnn_cub_text import Enc, Dec
 from torch.utils.data import DataLoader
-from dataset_CUB import CUBSentences
+from mmvaeplus.dataset_CUB import CUBSentences
 
 # Constants
 maxSentLen = 32  # max length of any description for birds dataset

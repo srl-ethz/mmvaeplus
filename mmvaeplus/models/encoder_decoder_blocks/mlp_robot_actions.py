@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import Constants
+from mmvaeplus.utils import Constants
 
 class MLP(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dims):
@@ -70,4 +70,4 @@ class RobotActionDecoder(nn.Module):
 
     def forward(self, u):
         # returning mean and length scale, hardcoded?
-        return self.decoder(u), torch.tensor(0.01).to(u.device)
+        return self.decoder(u), torch.tensor(0.75).to(u.device)

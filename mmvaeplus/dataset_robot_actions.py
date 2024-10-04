@@ -19,6 +19,21 @@ class RobotActionsDataset(Dataset):
         self.onedof_pose_mean = self.onedof_pose.mean()
         self.onedof_pose_std = self.onedof_pose.std()
 
+        self.dataset_stats = {
+            'hand_pose': {
+                'mean': self.hand_pose_mean,
+                'std': self.hand_pose_std
+            },
+            'faive_angles': {
+                'mean': self.faive_angles_mean,
+                'std': self.faive_angles_std
+            },
+            'onedof_pose': {
+                'mean': self.onedof_pose_mean,
+                'std': self.onedof_pose_std
+            }
+        }
+
         self.hand_pose = (self.hand_pose - self.hand_pose_mean) / self.hand_pose_std
         self.faive_angles = (self.faive_angles - self.faive_angles_mean) / self.faive_angles_std
         self.onedof_pose = (self.onedof_pose - self.onedof_pose_mean) / self.onedof_pose_std
@@ -52,4 +67,4 @@ def get_robot_actions_dataloaders(data_path, batch_size, shuffle=True, split_rat
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, **kwargs)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle, **kwargs)
 
-    return train_loader, test_loader
+    return train_loader, test_loader, dataset.dataset_stats
