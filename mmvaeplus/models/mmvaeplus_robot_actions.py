@@ -9,12 +9,16 @@ from mmvaeplus.utils import Constants
 from mmvaeplus.dataset_robot_actions import get_robot_actions_dataloaders
 import json
 import os
+import pickle
 
 def build_model(checkpoint_dir, epoch, device='cuda'):
     args = torch.load(os.path.join(checkpoint_dir, f'args.rar'), map_location=device)
     model = RobotActions(args)
     model.load_state_dict(torch.load(os.path.join(checkpoint_dir, f'model_{epoch}.rar'), map_location=device))
-    return model
+    model = model.to(device)
+    with open(os.path.join(checkpoint_dir, f'dataset_stats.pkl'), 'rb') as f:
+        dataset_stats = pickle.load(f)
+    return model, dataset_stats
 
 class RobotActions(MMVAEplus):
     """
@@ -45,6 +49,23 @@ class RobotActions(MMVAEplus):
 
         self.params = params
 
+        self.calculate_llik_scaling()
+
+    def calculate_llik_scaling(self):
+        # Calculate the "size" of each modality
+        sizes = [vae.input_dim for vae in self.vaes]
+        
+        # Choose the median size as the reference
+        reference_size = sorted(sizes)[1]
+        
+        # Calculate scaling factors
+        scalings = [reference_size / size for size in sizes]
+        
+        # Apply scaling factors to each VAE
+        for vae, scaling in zip(self.vaes, scalings):
+            # print(f'Scaling factor for {vae.input_dim}d: {scaling}')
+            vae.llik_scaling = scaling
+
     @property
     def pz_params(self):
         """
@@ -68,7 +89,7 @@ class RobotActions(MMVAEplus):
     @staticmethod
     def getDataLoaders(batch_size, shuffle=True, device="cuda"):
         # Implement the data loading for robot actions
-        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_full_arctic.npy'  # Update this path
+        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_grab.npy'  # Update this path
         train_loader, test_loader, dataset_stats = get_robot_actions_dataloaders(
             data_path, batch_size, shuffle=shuffle, split_ratio=0.8, device=device
         )
@@ -99,3 +120,27 @@ class RobotActions(MMVAEplus):
                 # outputss[r][o] = make_grid(torch.cat([data[r][:num].cpu()]+recon_triess[r][o]), nrow=num)
                 outputss[r][o] = (data[r][:num].cpu(), recon_triess[r][o])
         return outputss
+    
+    def targeted_generation(self, data, src_modality, target_modality = 'all'):
+        """
+        Targeted generation.
+        Args:
+            data: Input (batch_size, in_modality_dim)
+            src_modality: Source modality (0,1,2) ('gc_angles', 'mano_pose', 'simple_gripper')
+            target_modality: Target modality (0,1,2) ('gc_angles', 'mano_pose', 'simple_gripper')
+
+        Returns:
+            Generations (batch_size, out_modality_dim)
+        """
+        # inputs: pad non-src modalities with zeros
+        device = data.device
+        inputs = [torch.zeros((data.shape[0], vae.input_dim), device=device) for vae in self.vaes]
+        inputs[src_modality] = data
+        recons_mat = super(RobotActions, self).self_and_cross_modal_generation(inputs)
+
+        if isinstance(target_modality, int):
+            return recons_mat[src_modality][target_modality]
+        elif target_modality == 'all':
+            return recons_mat
+
+

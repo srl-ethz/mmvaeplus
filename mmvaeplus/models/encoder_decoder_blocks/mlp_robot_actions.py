@@ -31,6 +31,7 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.mlp(x)
 
+
 class RobotActionEncoder(nn.Module):
     def __init__(self, input_dim, latent_dim_w, latent_dim_z, dist, hidden_dim=2048, num_hidden_layers=2):
         super(RobotActionEncoder, self).__init__()
@@ -67,6 +68,7 @@ class RobotActionDecoder(nn.Module):
         self.output_dim = output_dim
 
         self.decoder = MLP(latent_dim_u, output_dim, [hidden_dim]*num_hidden_layers)
+        
 
     def forward(self, u):
         # returning mean and length scale, hardcoded?

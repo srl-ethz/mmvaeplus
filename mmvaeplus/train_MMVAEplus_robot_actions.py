@@ -45,8 +45,12 @@ parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
 parser.add_argument('--priorposterior', type=str, default='Normal', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')
-parser.add_argument('--mlp_hidden_dim', type=int, default=2048,
-                    help='hidden dimension for MLPs')
+parser.add_argument('--faive_hidden_dim', type=int, default=32,
+                    help='hidden dimension for faive')
+parser.add_argument('--mano_hidden_dim', type=int, default=128,
+                    help='hidden dimension for mano')
+parser.add_argument('--gripper_hidden_dim', type=int, default=8,
+                    help='hidden dimension for gripper')
 parser.add_argument('--num_hidden_layers', type=int, default=2,
                     help='number of hidden layers for MLPs')
 parser.add_argument('--cuda-device-id', type=int, default=0,
@@ -79,7 +83,7 @@ wandb.login()
 wandb.init(
     project=args.experiment,
     config=args,
-    mode="disabled" 
+    # mode="disabled" 
 )
 
 runId = wandb.run.name
