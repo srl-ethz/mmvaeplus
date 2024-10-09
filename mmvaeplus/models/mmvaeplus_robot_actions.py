@@ -143,4 +143,76 @@ class RobotActions(MMVAEplus):
         elif target_modality == 'all':
             return recons_mat
 
+    def encode_gc_angles(self, gc_angles):
+        """
+        Encode gc_angles to latents.
+        Args:
+            gc_angles: Input, (batch_size, 11)
+
+        Returns:
+            Latents
+        """
+
+        return super(RobotActions, self).encode_to_latents(gc_angles)[0]
+        
+    def encode_mano_pose(self, mano_pose):
+        """
+        Encode mano_pose to latents.
+        Args:
+            mano_pose: Input, (batch_size, 45)
+
+        Returns:
+            Latents
+        """
+        return super(RobotActions, self).encode_to_latents(mano_pose)[1]
+
+    def encode_simple_gripper(self, simple_gripper):
+        """
+        Encode simple_gripper to latents.
+        Args:
+            simple_gripper: Input, (batch_size, 1)
+
+        Returns:
+            Latents
+        """
+        return super(RobotActions, self).encode_to_latents(simple_gripper)[2]
+
+    def decode_gc_angles(self, latents):
+        """
+        Perform self-reconstruction for gc_angles.
+        Args:
+            latents: Input, (batch_size, latent_dim_z)
+
+        Returns:
+            Decoded data
+        """
+        uss = [torch.zeros_like(latents) for _ in range(len(self.vaes))]
+        uss[0] = latents
+        return super(RobotActions, self).decode_from_latents(uss)[0]
+
+    def decode_mano_pose(self, latents):
+        """
+        Perform self-reconstruction for mano_pose.
+        Args:
+            latents: Input, (batch_size, latent_dim_w)
+
+        Returns:
+            Decoded data
+        """
+        uss = [torch.zeros_like(latents) for _ in range(len(self.vaes))]
+        uss[1] = latents
+        return super(RobotActions, self).decode_from_latents(uss)[1]
+
+    def decode_simple_gripper(self, latents):
+        """
+        Perform self-reconstruction for simple_gripper.
+        Args:
+            latents: Input, (batch_size, latent_dim_w)
+
+        Returns:
+            Decoded data
+        """
+        uss = [torch.zeros_like(latents) for _ in range(len(self.vaes))]
+        uss[2] = latents
+        return super(RobotActions, self).decode_from_latents(uss)[2]
 

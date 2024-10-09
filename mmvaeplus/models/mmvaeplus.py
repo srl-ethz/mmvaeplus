@@ -129,6 +129,43 @@ class MMVAEplus(nn.Module):
                 if e != d:  # fill-in off-diagonal
                     px_us[e][d] = vae.px_u(*vae.dec(us_new))
         return qu_xs, px_us, uss
+    
+    def encode_to_latents(self, data):
+        """
+        Encode data to latents.
+        Args:
+            data: Input
+
+        Returns:
+            Latents
+        """
+        uss = []
+        with torch.no_grad():
+            for m, vae in enumerate(self.vaes):
+                _, _, us = vae(data[m], K=1)
+                uss.append(us)
+        return uss
+    
+    def decode_from_latents(self, uss):
+        """
+        Decode latents to data. We only want to do self-reconstructions.
+        Args:
+            uss: Input, list of latents
+
+        Returns:
+            Decoded data
+        """
+        px_us = []
+        for e, us in enumerate(uss):
+            latents_w, latents_z = torch.split(us, [self.params.latent_dim_w, self.params.latent_dim_z], dim=-1)
+            for d, vae in enumerate(self.vaes):
+                if e == d:
+                    px_u = vae.px_u(*vae.dec(us))
+                    px_us.append(px_u)
+        
+        recons = [get_mean(px_u) for px_u in px_us]
+        return recons
+
 
     def self_and_cross_modal_generation(self, data):
         """
