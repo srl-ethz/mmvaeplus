@@ -62,7 +62,7 @@ def get_robot_actions_dataloaders(data_path, batch_size, shuffle=True, split_rat
     test_size = len(dataset) - train_size
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-    kwargs = {'num_workers': 1, 'pin_memory': True} if device == "cuda" else {}
+    kwargs = {'num_workers': 16, 'pin_memory': True, 'prefetch_factor':32} if device == "cuda" else {}
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, **kwargs)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle, **kwargs)

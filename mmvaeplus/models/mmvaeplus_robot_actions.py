@@ -87,9 +87,9 @@ class RobotActions(MMVAEplus):
             return self._pw_params[0], F.softmax(self._pw_params[1], dim=-1) * self._pw_params[1].size(-1) + Constants.eta
 
     @staticmethod
-    def getDataLoaders(batch_size, shuffle=True, device="cuda"):
+    def getDataLoaders(data_path, batch_size, shuffle=True, device="cuda"):
         # Implement the data loading for robot actions
-        data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_grab.npy'  # Update this path
+        # data_path = '/mnt/data/erbauer/retargeting/retargeted_hand_dataset_combined_grab_new_v2.npy'  # Update this path
         train_loader, test_loader, dataset_stats = get_robot_actions_dataloaders(
             data_path, batch_size, shuffle=shuffle, split_ratio=0.8, device=device
         )
@@ -152,8 +152,10 @@ class RobotActions(MMVAEplus):
         Returns:
             Latents
         """
-
-        return super(RobotActions, self).encode_to_latents(gc_angles)[0]
+        inputs = [torch.zeros((gc_angles.shape[0], vae.input_dim), device=gc_angles.device) for vae in self.vaes]
+        inputs[0] = gc_angles
+        out = super(RobotActions, self).encode_to_latents(inputs)[0].squeeze(0)
+        return out 
         
     def encode_mano_pose(self, mano_pose):
         """
@@ -164,7 +166,10 @@ class RobotActions(MMVAEplus):
         Returns:
             Latents
         """
-        return super(RobotActions, self).encode_to_latents(mano_pose)[1]
+        inputs = [torch.zeros((mano_pose.shape[0], vae.input_dim), device=mano_pose.device) for vae in self.vaes]
+        inputs[1] = mano_pose
+        out = super(RobotActions, self).encode_to_latents(inputs)[1].squeeze(0)
+        return out
 
     def encode_simple_gripper(self, simple_gripper):
         """
@@ -175,7 +180,10 @@ class RobotActions(MMVAEplus):
         Returns:
             Latents
         """
-        return super(RobotActions, self).encode_to_latents(simple_gripper)[2]
+        inputs = [torch.zeros((simple_gripper.shape[0], vae.input_dim), device=simple_gripper.device) for vae in self.vaes]
+        inputs[2] = simple_gripper
+        out = super(RobotActions, self).encode_to_latents(inputs)[2].squeeze(0)
+        return out
 
     def decode_gc_angles(self, latents):
         """

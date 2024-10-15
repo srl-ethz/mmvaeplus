@@ -7,13 +7,13 @@ from .base_vae import VAE
 from .encoder_decoder_blocks.mlp_robot_actions import RobotActionEncoder, RobotActionDecoder
 
 class RobotActionVAE(VAE):
-    def __init__(self, input_dim, mlp_hidden_dim, params):
+    def __init__(self, input_dim, enc_hidden_dim, dec_hidden_dim, params):
         super(RobotActionVAE, self).__init__(
             dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,  # prior
             dist.Normal,  # likelihood
             dist.Normal if params.priorposterior == 'Normal' else dist.Laplace,  # posterior
-            RobotActionEncoder(input_dim, params.latent_dim_w, params.latent_dim_z, params.priorposterior, mlp_hidden_dim, params.num_hidden_layers),  # Encoder
-            RobotActionDecoder(params.latent_dim_w + params.latent_dim_z, input_dim, mlp_hidden_dim, params.num_hidden_layers),  # Decoder
+            RobotActionEncoder(input_dim, params.latent_dim_w, params.latent_dim_z, params.priorposterior, enc_hidden_dim, params.num_hidden_layers),  # Encoder
+            RobotActionDecoder(params.latent_dim_w + params.latent_dim_z, input_dim, dec_hidden_dim, params.num_hidden_layers),  # Decoder
             params
         )
         self._pw_params_aux = nn.ParameterList([
@@ -33,15 +33,15 @@ class RobotActionVAE(VAE):
 
 class RobotAction11d(RobotActionVAE):
     def __init__(self, params):
-        super(RobotAction11d, self).__init__(11, params.faive_hidden_dim, params)
+        super(RobotAction11d, self).__init__(11, params.faive_enc_hidden_dim, params.faive_dec_hidden_dim, params)
         self.modelName = 'RobotAction11d'
 
 class RobotAction45d(RobotActionVAE):
     def __init__(self, params):
-        super(RobotAction45d, self).__init__(45, params.mano_hidden_dim, params)
+        super(RobotAction45d, self).__init__(45, params.mano_enc_hidden_dim, params.mano_dec_hidden_dim, params)
         self.modelName = 'RobotAction45d'
 
 class RobotAction1d(RobotActionVAE):
     def __init__(self, params):
-        super(RobotAction1d, self).__init__(1, params.gripper_hidden_dim, params)
+        super(RobotAction1d, self).__init__(1, params.gripper_enc_hidden_dim, params.gripper_dec_hidden_dim, params)
         self.modelName = 'RobotAction1d'

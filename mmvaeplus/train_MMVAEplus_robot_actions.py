@@ -22,7 +22,7 @@ parser.add_argument('--obj', type=str, default='dreg', choices=['elbo', 'dreg'],
                     help='objective to use')
 parser.add_argument('--K', type=int, default=10,
                     help='number of samples when resampling in the latent space')
-parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+parser.add_argument('--batch-size', type=int, default=16384, metavar='N',
                     help='batch size for data')
 parser.add_argument('--epochs', type=int, default=50, metavar='E',
                     help='number of epochs to train')
@@ -45,12 +45,18 @@ parser.add_argument('--outputdir', type=str, default='../outputs',
                     help='Output directory')
 parser.add_argument('--priorposterior', type=str, default='Normal', choices=['Normal', 'Laplace'],
                     help='distribution choice for prior and posterior')
-parser.add_argument('--faive_hidden_dim', type=int, default=32,
-                    help='hidden dimension for faive')
-parser.add_argument('--mano_hidden_dim', type=int, default=128,
-                    help='hidden dimension for mano')
-parser.add_argument('--gripper_hidden_dim', type=int, default=8,
-                    help='hidden dimension for gripper')
+parser.add_argument('--faive_enc_hidden_dim', type=int, default=32,
+                    help='encoder hidden dimension for faive')
+parser.add_argument('--faive_dec_hidden_dim', type=int, default=32,
+                    help='decoder hidden dimension for faive')
+parser.add_argument('--mano_enc_hidden_dim', type=int, default=36,
+                    help='encoder hidden dimension for mano')
+parser.add_argument('--mano_dec_hidden_dim', type=int, default=36,
+                    help='decoder hidden dimension for mano')
+parser.add_argument('--gripper_enc_hidden_dim', type=int, default=4,
+                    help='encoder hidden dimension for gripper')
+parser.add_argument('--gripper_dec_hidden_dim', type=int, default=4,
+                    help='decoder hidden dimension for gripper')
 parser.add_argument('--num_hidden_layers', type=int, default=2,
                     help='number of hidden layers for MLPs')
 parser.add_argument('--cuda-device-id', type=int, default=0,
@@ -115,7 +121,7 @@ optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                        lr=1e-3, amsgrad=True)
 
 # Load Robot Actions dataset
-train_loader, test_loader, dataset_stats = model.getDataLoaders(args.batch_size, device=device)
+train_loader, test_loader, dataset_stats = model.getDataLoaders(args.datadir, args.batch_size, device=device)
 
 # save dataset stats to run
 with open(f'{runPath}/dataset_stats.pkl', 'wb') as fp:
@@ -184,3 +190,4 @@ if __name__ == '__main__':
                 best_val_loss = val_loss
                 save_model_light(model, runPath + '/model_best.rar')
 
+ 
