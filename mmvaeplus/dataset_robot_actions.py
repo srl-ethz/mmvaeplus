@@ -1,62 +1,85 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
+from sklearn.preprocessing import RobustScaler, QuantileTransformer
+
+
 
 class RobotActionsDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, normalization_type='z_score'):
         self.data = np.load(data_path, allow_pickle=True).item()
         self.hand_pose = torch.tensor(self.data['pose'], dtype=torch.float32)
-        # TODO: add shape to MANO input
-        self.hand_shape = torch.tensor(self.data['shape'], dtype=torch.float32)
         self.faive_angles = torch.tensor(self.data['faive_angles'], dtype=torch.float32)
         self.onedof_pose = torch.tensor(self.data['simple_gripper'], dtype=torch.float32)
-        
-        # normalize data, possibly save these?
-        self.hand_pose_mean = self.hand_pose.mean()
-        self.hand_pose_std = self.hand_pose.std()
-        self.faive_angles_mean = self.faive_angles.mean()
-        self.faive_angles_std = self.faive_angles.std()
-        self.onedof_pose_mean = self.onedof_pose.mean()
-        self.onedof_pose_std = self.onedof_pose.std()
+        print(self.hand_pose.shape, self.faive_angles.shape, self.onedof_pose.shape)
 
-        self.dataset_stats = {
-            'hand_pose': {
-                'mean': self.hand_pose_mean,
-                'std': self.hand_pose_std
-            },
-            'faive_angles': {
-                'mean': self.faive_angles_mean,
-                'std': self.faive_angles_std
-            },
-            'onedof_pose': {
-                'mean': self.onedof_pose_mean,
-                'std': self.onedof_pose_std
-            }
-        }
+        self.normalization_type = normalization_type
+        self.dataset_stats = {}
 
-        self.hand_pose = (self.hand_pose - self.hand_pose_mean) / self.hand_pose_std
-        self.faive_angles = (self.faive_angles - self.faive_angles_mean) / self.faive_angles_std
-        self.onedof_pose = (self.onedof_pose - self.onedof_pose_mean) / self.onedof_pose_std
-
+        self.normalize_data()
 
         assert len(self.hand_pose) == len(self.faive_angles) == len(self.onedof_pose), "Data lengths do not match"
         assert torch.isnan(self.hand_pose).any() == False, "NaN in hand_pose"
         assert torch.isnan(self.faive_angles).any() == False, "NaN in faive_angles"
         assert torch.isnan(self.onedof_pose).any() == False, "NaN in onedof_pose"
 
+    def normalize_data(self):
+        if self.normalization_type == 'z_score':
+            self.z_score_normalization()
+        elif self.normalization_type == 'minmax':
+            self.minmax_normalization()
+        elif self.normalization_type == 'robust':
+            self.robust_normalization()
+        elif self.normalization_type == 'quantile':
+            self.quantile_normalization()
+        else:
+            raise ValueError("Unknown normalization type")
+
+    def z_score_normalization(self):
+        for name, data in [('hand_pose', self.hand_pose), ('faive_angles', self.faive_angles), ('onedof_pose', self.onedof_pose)]:
+            mean = data.mean(dim=0)
+            std = data.std(dim=0)
+            std[std < 1e-6] = 1e-6  # Avoid division by zero
+            normalized_data = (data - mean) / std
+            setattr(self, name, normalized_data)
+            self.dataset_stats[name] = {'mean': mean, 'std': std}
+
+    def minmax_normalization(self):
+        for name, data in [('hand_pose', self.hand_pose), ('faive_angles', self.faive_angles), ('onedof_pose', self.onedof_pose)]:
+            min_val = data.min(dim=0).values
+            max_val = data.max(dim=0).values
+            range_val = max_val - min_val
+            range_val[range_val < 1e-6] = 1e-6  # Avoid division by zero
+            normalized_data = (data - min_val) / range_val
+            setattr(self, name, normalized_data)
+            self.dataset_stats[name] = {'min': min_val, 'max': max_val}
+
+    def robust_normalization(self):
+        for name, data in [('hand_pose', self.hand_pose), ('faive_angles', self.faive_angles), ('onedof_pose', self.onedof_pose)]:
+            scaler = RobustScaler()
+            normalized_data = torch.tensor(scaler.fit_transform(data.numpy()), dtype=torch.float32)
+            setattr(self, name, normalized_data)
+            self.dataset_stats[name] = {'center': torch.tensor(scaler.center_), 'scale': torch.tensor(scaler.scale_)}
+
+    def quantile_normalization(self):
+        for name, data in [('hand_pose', self.hand_pose), ('faive_angles', self.faive_angles), ('onedof_pose', self.onedof_pose)]:
+            transformer = QuantileTransformer(output_distribution='normal')
+            normalized_data = torch.tensor(transformer.fit_transform(data.numpy()), dtype=torch.float32)
+            setattr(self, name, normalized_data)
+            self.dataset_stats[name] = {'quantiles': torch.tensor(transformer.quantiles_)}
+
     def __len__(self):
         return len(self.hand_pose)
 
     def __getitem__(self, idx):
-
         return {
             'hand_pose': self.hand_pose[idx],
             'faive_angles': self.faive_angles[idx],
             '1dof_pose': self.onedof_pose[idx]
         }
 
-def get_robot_actions_dataloaders(data_path, batch_size, shuffle=True, split_ratio=0.8, device="cuda"):
-    dataset = RobotActionsDataset(data_path)
+def get_robot_actions_dataloaders(data_path, batch_size, normalization_type='z_score', shuffle=True, split_ratio=0.8, device="cuda"):
+    dataset = RobotActionsDataset(data_path, normalization_type)
     
     train_size = int(split_ratio * len(dataset))
     test_size = len(dataset) - train_size

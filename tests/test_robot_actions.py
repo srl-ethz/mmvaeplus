@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import argparse
 import torch
 import pickle
 from mmvaeplus.models.mmvaeplus_robot_actions import build_model, RobotActions
@@ -97,12 +98,20 @@ def load_mano_params(filepath):
     return mano_params
 
 if __name__ == '__main__':
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    run_name = 'divine-dawn-44'
-    model_epoch = 'best'
 
-    model_path = f'/home/erbauer/vaes/mmvaeplus/outputs/RobotActions_1/checkpoints/{run_name}/'
-    mano_filepath = '/mnt/data1/erbauer/grab_test_data/rhand_params.npy'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt_path', type=str, default='/home/erbauer/vaes/mmvaeplus/outputs/RobotActions_1/checkpoints/')
+    parser.add_argument('--mano_data_path', type=str, default='/mnt/data1/erbauer/grab_test_data/rhand_params_watch_lift.npy')
+    parser.add_argument('--run_name', type=str, default='cerulean-sound-56')
+    parser.add_argument('--model_epoch', type=str, default='best')
+    args = parser.parse_args()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    run_name = args.run_name
+    model_epoch = args.model_epoch
+
+    model_path = f'{args.ckpt_path}/{run_name}/'
+    mano_filepath = args.mano_data_path
     out_base_path = model_path
     os.makedirs(out_base_path, exist_ok=True)
 

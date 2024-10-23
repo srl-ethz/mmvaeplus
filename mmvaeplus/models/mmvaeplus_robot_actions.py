@@ -60,11 +60,13 @@ class RobotActions(MMVAEplus):
         
         # Calculate scaling factors
         scalings = [reference_size / size for size in sizes]
+        scalings[0] = 3.0
         
         # Apply scaling factors to each VAE
         for vae, scaling in zip(self.vaes, scalings):
             # print(f'Scaling factor for {vae.input_dim}d: {scaling}')
             vae.llik_scaling = scaling
+            print(f'Scaling factor for {vae.modelName}: {scaling}')
 
     @property
     def pz_params(self):
